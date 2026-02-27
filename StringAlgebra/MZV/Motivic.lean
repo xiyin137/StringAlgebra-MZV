@@ -4131,35 +4131,37 @@ def LowWeightConsistencyReport.trustedPipelineProp (R : LowWeightConsistencyRepo
     some R.matrixReport.injectiveStatus) ∧
   LowWeightConsistencyReport.orientationAwareCertificate R
 
+/-- Any key-generated consistency-report family satisfies trusted-pipeline certification. -/
+theorem lowWeightConsistencyReports_of_keys_all_trustedPipeline
+    (ks : List LowWeightStepKey) :
+    ∀ R ∈ ks.map lowWeightConsistencyReportOfKey,
+      LowWeightConsistencyReport.trustedPipelineProp R := by
+  intro R hR
+  refine ⟨?_, ?_, ?_⟩
+  · exact lowWeightConsistencyReports_of_keys_all_flags_sound ks R hR
+  · exact lowWeightConsistencyReports_of_keys_status_match_expected ks R hR
+  · exact lowWeightConsistencyReports_of_keys_all_orientationAware ks R hR
+
 /-- Every joined low-weight report satisfies the bundled trusted-pipeline proposition. -/
 theorem lowWeightConsistencyReports_all_trustedPipeline :
     ∀ R ∈ lowWeightConsistencyReports,
       LowWeightConsistencyReport.trustedPipelineProp R := by
-  intro R hR
-  refine ⟨?_, ?_, ?_⟩
-  · exact lowWeightConsistencyReports_all_flags_sound R hR
-  · exact lowWeightConsistencyReports_status_match_expected R hR
-  · exact lowWeightConsistencyReports_all_orientationAware R hR
+  simpa [lowWeightConsistencyReports] using
+    (lowWeightConsistencyReports_of_keys_all_trustedPipeline lowWeightReportKeys)
 
 /-- Every extended joined low-weight report satisfies the bundled trusted-pipeline proposition. -/
 theorem lowWeightConsistencyReportsExtended_all_trustedPipeline :
     ∀ R ∈ lowWeightConsistencyReportsExtended,
       LowWeightConsistencyReport.trustedPipelineProp R := by
-  intro R hR
-  refine ⟨?_, ?_, ?_⟩
-  · exact lowWeightConsistencyReportsExtended_all_flags_sound R hR
-  · exact lowWeightConsistencyReportsExtended_status_match_expected R hR
-  · exact lowWeightConsistencyReportsExtended_all_orientationAware R hR
+  simpa [lowWeightConsistencyReportsExtended] using
+    (lowWeightConsistencyReports_of_keys_all_trustedPipeline lowWeightReportKeysExtended)
 
 /-- Every augmented joined low-weight report satisfies the trusted-pipeline proposition. -/
 theorem lowWeightConsistencyReportsAugmented_all_trustedPipeline :
     ∀ R ∈ lowWeightConsistencyReportsAugmented,
       LowWeightConsistencyReport.trustedPipelineProp R := by
-  intro R hR
-  refine ⟨?_, ?_, ?_⟩
-  · exact lowWeightConsistencyReportsAugmented_all_flags_sound R hR
-  · exact lowWeightConsistencyReportsAugmented_status_match_expected R hR
-  · exact lowWeightConsistencyReportsAugmented_all_orientationAware R hR
+  simpa [lowWeightConsistencyReportsAugmented] using
+    (lowWeightConsistencyReports_of_keys_all_trustedPipeline lowWeightReportKeysAugmented)
 
 /-- From a trusted pipeline certificate, a wide injectivity matrix forces `refuted` status. -/
 theorem LowWeightConsistencyReport.injectiveStatus_refuted_of_trustedPipeline_wide
