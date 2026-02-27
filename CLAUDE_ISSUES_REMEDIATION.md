@@ -47,6 +47,9 @@ Source: `claude_to_codex.md`
      - added key-indexed trusted-pipeline status extraction
        (`lowWeightConsistencyReportOfKey_status_from_trustedPipeline`) so per-report
        trusted-status theorems are now thin specializations.
+     - factored orientation-aware coverage proofs through a generic key-list lemma
+       (`lowWeightConsistencyReports_of_keys_all_orientationAware`) instead of per-list
+       hand-written case splits.
    - Full tactic/metaprogram abstraction is still open.
 
 4. Unverified weight/depth metadata status: partially addressed
@@ -72,5 +75,5 @@ Source: `claude_to_codex.md`
 1. Build: `lake build StringAlgebra.MZV` passes.
 2. `sorry` count: `0`.
 3. `def ... : Prop` count: `90`.
-4. `theorem` count: `512`.
+4. `theorem` count: `516`.
 5. `native_decide` count in `StringAlgebra/MZV/Motivic.lean`: `11`.

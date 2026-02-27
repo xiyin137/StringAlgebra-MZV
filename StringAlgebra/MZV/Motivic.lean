@@ -4141,101 +4141,85 @@ def LowWeightConsistencyReport.orientationAwareCertificate
     (R.matrixReport.matrix.rows < R.matrixReport.matrix.cols →
       R.matrixReport.injectiveStatus = PropStatus.refuted)
 
+/-- Orientation-aware certificate extraction for a generated low-weight consistency report. -/
+theorem lowWeightConsistencyReportOfKey_orientationAwareCertificate
+    (k : LowWeightStepKey) :
+    LowWeightConsistencyReport.orientationAwareCertificate (lowWeightConsistencyReportOfKey k) := by
+  cases k
+  · refine ⟨?_, ?_, ?_⟩
+    · exact report_consistency_3_to_2_r0_matches_expectedInjectiveStatus
+    · exact (report_consistency_3_to_2_r0_transposeShapeAligned_sound).2
+    · exact (report_consistency_3_to_2_r0_wideNonSquare_sound).2
+  · refine ⟨?_, ?_, ?_⟩
+    · exact report_consistency_5_to_4_r0_matches_expectedInjectiveStatus
+    · exact (report_consistency_5_to_4_r0_transposeShapeAligned_sound).2
+    · exact (report_consistency_5_to_4_r0_wideNonSquare_sound).2
+  · refine ⟨?_, ?_, ?_⟩
+    · exact report_consistency_6_to_5_r0_matches_expectedInjectiveStatus
+    · exact (report_consistency_6_to_5_r0_transposeShapeAligned_sound).2
+    · exact (report_consistency_6_to_5_r0_wideNonSquare_sound).2
+  · refine ⟨?_, ?_, ?_⟩
+    · exact report_consistency_6_to_5_r1_matches_expectedInjectiveStatus
+    · exact (report_consistency_6_to_5_r1_transposeShapeAligned_sound).2
+    · exact (report_consistency_6_to_5_r1_wideNonSquare_sound).2
+  · refine ⟨?_, ?_, ?_⟩
+    · exact report_consistency_7_to_6_r0_matches_expectedInjectiveStatus
+    · exact (report_consistency_7_to_6_r0_transposeShapeAligned_sound).2
+    · exact (report_consistency_7_to_6_r0_wideNonSquare_sound).2
+
 theorem report_consistency_3_to_2_r0_orientationAwareCertificate :
     LowWeightConsistencyReport.orientationAwareCertificate report_consistency_3_to_2_r0 := by
-  refine ⟨?_, ?_, ?_⟩
-  · exact report_consistency_3_to_2_r0_matches_expectedInjectiveStatus
-  · exact (report_consistency_3_to_2_r0_transposeShapeAligned_sound).2
-  · exact (report_consistency_3_to_2_r0_wideNonSquare_sound).2
+  simpa [lowWeightConsistencyReportOfKey_k3] using
+    (lowWeightConsistencyReportOfKey_orientationAwareCertificate .k3_to_2_r0)
 
 theorem report_consistency_5_to_4_r0_orientationAwareCertificate :
     LowWeightConsistencyReport.orientationAwareCertificate report_consistency_5_to_4_r0 := by
-  refine ⟨?_, ?_, ?_⟩
-  · exact report_consistency_5_to_4_r0_matches_expectedInjectiveStatus
-  · exact (report_consistency_5_to_4_r0_transposeShapeAligned_sound).2
-  · exact (report_consistency_5_to_4_r0_wideNonSquare_sound).2
+  simpa [lowWeightConsistencyReportOfKey_k5] using
+    (lowWeightConsistencyReportOfKey_orientationAwareCertificate .k5_to_4_r0)
 
 theorem report_consistency_6_to_5_r0_orientationAwareCertificate :
     LowWeightConsistencyReport.orientationAwareCertificate report_consistency_6_to_5_r0 := by
-  refine ⟨?_, ?_, ?_⟩
-  · exact report_consistency_6_to_5_r0_matches_expectedInjectiveStatus
-  · exact (report_consistency_6_to_5_r0_transposeShapeAligned_sound).2
-  · exact (report_consistency_6_to_5_r0_wideNonSquare_sound).2
+  simpa [lowWeightConsistencyReportOfKey_k6r0] using
+    (lowWeightConsistencyReportOfKey_orientationAwareCertificate .k6_to_5_r0)
 
 theorem report_consistency_6_to_5_r1_orientationAwareCertificate :
     LowWeightConsistencyReport.orientationAwareCertificate report_consistency_6_to_5_r1 := by
-  refine ⟨?_, ?_, ?_⟩
-  · exact report_consistency_6_to_5_r1_matches_expectedInjectiveStatus
-  · exact (report_consistency_6_to_5_r1_transposeShapeAligned_sound).2
-  · exact (report_consistency_6_to_5_r1_wideNonSquare_sound).2
+  simpa [lowWeightConsistencyReportOfKey_k6r1] using
+    (lowWeightConsistencyReportOfKey_orientationAwareCertificate .k6_to_5_r1)
 
 theorem report_consistency_7_to_6_r0_orientationAwareCertificate :
     LowWeightConsistencyReport.orientationAwareCertificate report_consistency_7_to_6_r0 := by
-  refine ⟨?_, ?_, ?_⟩
-  · exact report_consistency_7_to_6_r0_matches_expectedInjectiveStatus
-  · exact (report_consistency_7_to_6_r0_transposeShapeAligned_sound).2
-  · exact (report_consistency_7_to_6_r0_wideNonSquare_sound).2
+  simpa [lowWeightConsistencyReportOfKey_k7] using
+    (lowWeightConsistencyReportOfKey_orientationAwareCertificate .k7_to_6_r0)
+
+/-- Any report in a key-generated family inherits orientation-aware certification. -/
+theorem lowWeightConsistencyReports_of_keys_all_orientationAware
+    (ks : List LowWeightStepKey) :
+    ∀ R ∈ ks.map lowWeightConsistencyReportOfKey,
+      LowWeightConsistencyReport.orientationAwareCertificate R := by
+  intro R hR
+  rcases List.mem_map.mp hR with ⟨k, hk, hkR⟩
+  subst hkR
+  exact lowWeightConsistencyReportOfKey_orientationAwareCertificate k
 
 /-- Every joined low-weight report satisfies the orientation-aware certificate. -/
 theorem lowWeightConsistencyReports_all_orientationAware :
     ∀ R ∈ lowWeightConsistencyReports,
       LowWeightConsistencyReport.orientationAwareCertificate R := by
-  intro R hR
-  have hcases :
-      R = report_consistency_3_to_2_r0 ∨
-        R = report_consistency_5_to_4_r0 ∨
-        R = report_consistency_6_to_5_r0 := by
-    simpa [lowWeightConsistencyReports, List.mem_cons] using hR
-  rcases hcases with h | h | h
-  · subst h
-    exact report_consistency_3_to_2_r0_orientationAwareCertificate
-  · subst h
-    exact report_consistency_5_to_4_r0_orientationAwareCertificate
-  · subst h
-    exact report_consistency_6_to_5_r0_orientationAwareCertificate
+  simpa [lowWeightConsistencyReports] using
+    (lowWeightConsistencyReports_of_keys_all_orientationAware lowWeightReportKeys)
 
 theorem lowWeightConsistencyReportsExtended_all_orientationAware :
     ∀ R ∈ lowWeightConsistencyReportsExtended,
       LowWeightConsistencyReport.orientationAwareCertificate R := by
-  intro R hR
-  have hcases :
-      R = report_consistency_3_to_2_r0 ∨
-        R = report_consistency_5_to_4_r0 ∨
-        R = report_consistency_6_to_5_r0 ∨
-        R = report_consistency_6_to_5_r1 := by
-    simpa [lowWeightConsistencyReportsExtended, List.mem_cons] using hR
-  rcases hcases with h | h | h | h
-  · subst h
-    exact report_consistency_3_to_2_r0_orientationAwareCertificate
-  · subst h
-    exact report_consistency_5_to_4_r0_orientationAwareCertificate
-  · subst h
-    exact report_consistency_6_to_5_r0_orientationAwareCertificate
-  · subst h
-    exact report_consistency_6_to_5_r1_orientationAwareCertificate
+  simpa [lowWeightConsistencyReportsExtended] using
+    (lowWeightConsistencyReports_of_keys_all_orientationAware lowWeightReportKeysExtended)
 
 theorem lowWeightConsistencyReportsAugmented_all_orientationAware :
     ∀ R ∈ lowWeightConsistencyReportsAugmented,
       LowWeightConsistencyReport.orientationAwareCertificate R := by
-  intro R hR
-  have hcases :
-      R = report_consistency_3_to_2_r0 ∨
-        R = report_consistency_5_to_4_r0 ∨
-        R = report_consistency_6_to_5_r0 ∨
-        R = report_consistency_6_to_5_r1 ∨
-        R = report_consistency_7_to_6_r0 := by
-    simpa [lowWeightConsistencyReportsAugmented, List.mem_cons] using hR
-  rcases hcases with h | h | h | h | h
-  · subst h
-    exact report_consistency_3_to_2_r0_orientationAwareCertificate
-  · subst h
-    exact report_consistency_5_to_4_r0_orientationAwareCertificate
-  · subst h
-    exact report_consistency_6_to_5_r0_orientationAwareCertificate
-  · subst h
-    exact report_consistency_6_to_5_r1_orientationAwareCertificate
-  · subst h
-    exact report_consistency_7_to_6_r0_orientationAwareCertificate
+  simpa [lowWeightConsistencyReportsAugmented] using
+    (lowWeightConsistencyReports_of_keys_all_orientationAware lowWeightReportKeysAugmented)
 
 /-- Bundled "trusted pipeline" proposition for a joined low-weight report. -/
 def LowWeightConsistencyReport.trustedPipelineProp (R : LowWeightConsistencyReport) : Prop :=
