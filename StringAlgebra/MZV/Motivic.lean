@@ -628,6 +628,28 @@ theorem depthBounded_leftFormalProjection_of_leftFactor
 def oddCoactionCut (Δ : CoactionMap) (r : ℕ) (m : MotivicMZV) : TensorElement :=
   coactionRightWeightSlice Δ (2 * r + 1) m
 
+/-- Coaction hypothesis: every left tensor factor is well-formed. -/
+def LeftFactorsWellFormed (Δ : CoactionMap) : Prop :=
+  ∀ m : MotivicMZV, ∀ q : ℚ, ∀ a b : MotivicMZV,
+    (q, a, b) ∈ Δ.delta m → MotivicMZV.WellFormed a
+
+/-- Coaction hypothesis: every left tensor factor has depth bounded by the source depth. -/
+def LeftDepthBounded (Δ : CoactionMap) : Prop :=
+  ∀ m : MotivicMZV, ∀ q : ℚ, ∀ a b : MotivicMZV,
+    (q, a, b) ∈ Δ.delta m → a.depth ≤ m.depth
+
+/-- Coaction hypothesis: each tensor term splits weight within source weight budget. -/
+def LeftRightWeightBounded (Δ : CoactionMap) : Prop :=
+  ∀ m : MotivicMZV, ∀ q : ℚ, ∀ a b : MotivicMZV,
+    (q, a, b) ∈ Δ.delta m → a.weight + b.weight ≤ m.weight
+
+@[simp] theorem mem_oddCoactionCut_iff
+    (Δ : CoactionMap) (r : ℕ) (m : MotivicMZV)
+    (q : ℚ) (a b : MotivicMZV) :
+    (q, a, b) ∈ oddCoactionCut Δ r m ↔
+      (q, a, b) ∈ Δ.delta m ∧ b.weight = 2 * r + 1 := by
+  simp [oddCoactionCut, coactionRightWeightSlice, TensorElement.rightWeightPart]
+
 /-- Candidate Brown-style weight-lowering derivation induced by odd coaction cuts.
     This is intentionally separated from the legacy weight-raising Ihara model. -/
 def weightLoweringOddDerivationCandidate
@@ -688,6 +710,34 @@ theorem weightLoweringOddDerivationCandidate_wellFormed_of_leftFactorBounds
     exact depthBounded_leftFormalProjection_of_leftFactor
       (oddCoactionCut Δ r m) m.depth
       hleftDepth hleftWell q s (by simpa [weightLoweringOddDerivationCandidate] using hs)
+
+/-- Global coaction-side boundedness hypotheses imply well-formedness of the
+    coaction-derived odd weight-lowering derivation candidate. -/
+theorem weightLoweringOddDerivationCandidate_wellFormed_of_deltaBounds
+    (Δ : CoactionMap) (r : ℕ) (m : MotivicMZV)
+    (hWell : LeftFactorsWellFormed Δ)
+    (hDepth : LeftDepthBounded Δ)
+    (hWeight : LeftRightWeightBounded Δ) :
+    MotivicMZV.WellFormed (weightLoweringOddDerivationCandidate Δ r m) := by
+  refine weightLoweringOddDerivationCandidate_wellFormed_of_leftFactorBounds Δ r m ?_ ?_ ?_
+  · intro q a b hcut
+    have hmem :
+        (q, a, b) ∈ Δ.delta m ∧ b.weight = 2 * r + 1 :=
+      (mem_oddCoactionCut_iff Δ r m q a b).1 hcut
+    have hsum : a.weight + b.weight ≤ m.weight := hWeight m q a b hmem.1
+    have hsumOdd : a.weight + (2 * r + 1) ≤ m.weight := by
+      simpa [hmem.2] using hsum
+    omega
+  · intro q a b hcut
+    have hmem :
+        (q, a, b) ∈ Δ.delta m ∧ b.weight = 2 * r + 1 :=
+      (mem_oddCoactionCut_iff Δ r m q a b).1 hcut
+    exact hDepth m q a b hmem.1
+  · intro q a b hcut
+    have hmem :
+        (q, a, b) ∈ Δ.delta m ∧ b.weight = 2 * r + 1 :=
+      (mem_oddCoactionCut_iff Δ r m q a b).1 hcut
+    exact hWell m q a b hmem.1
 
 /-- Primitive-fragment agreement implies coassociativity in the current model. -/
 theorem isCoassociative_of_primitive_fragment

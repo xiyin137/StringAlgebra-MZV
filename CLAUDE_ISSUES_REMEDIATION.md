@@ -35,6 +35,10 @@ Source: `claude_to_codex.md`
      - projection/transfer lemmas that move left-factor `WellFormed`/weight/depth bounds
        through `leftFormalProjection` to certify
        `weightLoweringOddDerivationCandidate_wellFormed_of_leftFactorBounds`.
+     - added coaction-side boundedness interfaces
+       (`LeftFactorsWellFormed`, `LeftDepthBounded`, `LeftRightWeightBounded`) and
+       the bridge theorem
+       `weightLoweringOddDerivationCandidate_wellFormed_of_deltaBounds`.
    - Full Brown-style derivation rebuild remains open.
 
 2. `native_decide` reliance status: partially addressed
@@ -89,6 +93,6 @@ Source: `claude_to_codex.md`
 
 1. Build: `lake build StringAlgebra.MZV` passes.
 2. `sorry` count: `0`.
-3. `def ... : Prop` count: `90`.
-4. `theorem` count: `526`.
+3. `def ... : Prop` count: `93`.
+4. `theorem` count: `533`.
 5. `native_decide` count in `StringAlgebra/MZV/Motivic.lean`: `11`.

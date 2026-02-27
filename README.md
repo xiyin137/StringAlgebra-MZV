@@ -40,8 +40,8 @@ rg -n 'native_decide' StringAlgebra/MZV/Motivic.lean | wc -l
 
 1. `sorry` count in `StringAlgebra/MZV`: `0`
 2. `axiom`/`admit`/`unsafe` count in `StringAlgebra/MZV`: `0`
-3. Proposition-shell count (`def ... : Prop`): `90` (explicit spec/conjectural interfaces)
-4. `theorem` token count in `StringAlgebra/MZV`: `526`
+3. Proposition-shell count (`def ... : Prop`): `93` (explicit spec/conjectural interfaces)
+4. `theorem` token count in `StringAlgebra/MZV`: `533`
 5. `native_decide` uses in `Motivic.lean`: `11`
 6. Build status: `lake build StringAlgebra.MZV` passes
 
