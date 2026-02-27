@@ -571,6 +571,124 @@ def binaryInfinitesimalRightWeight
     (Δ : CoactionMap) (w : ℕ) (m₁ m₂ : MotivicMZV) : TensorElement :=
   TensorElement.rightWeightPart w (binaryInfinitesimal Δ m₁ m₂)
 
+/-- Weight-`w` slice of the coaction of a single motivic element (right factor). -/
+def coactionRightWeightSlice
+    (Δ : CoactionMap) (w : ℕ) (m : MotivicMZV) : TensorElement :=
+  TensorElement.rightWeightPart w (Δ.delta m)
+
+/-- Left-factor formal projection of a tensor element, weighted by tensor coefficients. -/
+def leftFormalProjection (t : TensorElement) : FormalSum :=
+  t.flatMap (fun (q, a, _) => FormalSum.smul q a.formal)
+
+@[simp] theorem leftFormalProjection_zero :
+    leftFormalProjection TensorElement.zero = FormalSum.zero := rfl
+
+@[simp] theorem leftFormalProjection_add (t₁ t₂ : TensorElement) :
+    leftFormalProjection (TensorElement.add t₁ t₂) =
+      FormalSum.add (leftFormalProjection t₁) (leftFormalProjection t₂) := by
+  simp [leftFormalProjection, TensorElement.add, FormalSum.add]
+
+/-- If left factors in a tensor expression are uniformly well-formed and weight bounded,
+    the projected formal sum inherits the same weight bound. -/
+theorem weightBounded_leftFormalProjection_of_leftFactor
+    (t : TensorElement) (W : ℕ)
+    (hweight : ∀ q : ℚ, ∀ a b : MotivicMZV, (q, a, b) ∈ t → a.weight ≤ W)
+    (hwell : ∀ q : ℚ, ∀ a b : MotivicMZV, (q, a, b) ∈ t → MotivicMZV.WellFormed a) :
+    ∀ q : ℚ, ∀ s : Composition, (q, s) ∈ leftFormalProjection t → s.weight ≤ W := by
+  intro q s hs
+  rcases List.mem_flatMap.mp hs with ⟨x, hxmem, hxproj⟩
+  rcases x with ⟨q₀, a, b⟩
+  simp [FormalSum.smul] at hxproj
+  rcases hxproj with ⟨q₁, hq₁, hcoeff⟩
+  have hWa : a.weight ≤ W := hweight q₀ a b hxmem
+  have hWFa : MotivicMZV.WellFormed a := hwell q₀ a b hxmem
+  rcases hWFa with ⟨haWeight, _haDepth⟩
+  have hsWeight : s.weight ≤ a.weight := haWeight q₁ s hq₁
+  exact Nat.le_trans hsWeight hWa
+
+/-- If left factors in a tensor expression are uniformly well-formed and depth bounded,
+    the projected formal sum inherits the same depth bound. -/
+theorem depthBounded_leftFormalProjection_of_leftFactor
+    (t : TensorElement) (D : ℕ)
+    (hdepth : ∀ q : ℚ, ∀ a b : MotivicMZV, (q, a, b) ∈ t → a.depth ≤ D)
+    (hwell : ∀ q : ℚ, ∀ a b : MotivicMZV, (q, a, b) ∈ t → MotivicMZV.WellFormed a) :
+    ∀ q : ℚ, ∀ s : Composition, (q, s) ∈ leftFormalProjection t → s.depth ≤ D := by
+  intro q s hs
+  rcases List.mem_flatMap.mp hs with ⟨x, hxmem, hxproj⟩
+  rcases x with ⟨q₀, a, b⟩
+  simp [FormalSum.smul] at hxproj
+  rcases hxproj with ⟨q₁, hq₁, hcoeff⟩
+  have hDa : a.depth ≤ D := hdepth q₀ a b hxmem
+  have hWFa : MotivicMZV.WellFormed a := hwell q₀ a b hxmem
+  rcases hWFa with ⟨_haWeight, haDepth⟩
+  have hsDepth : s.depth ≤ a.depth := haDepth q₁ s hq₁
+  exact Nat.le_trans hsDepth hDa
+
+/-- Coaction-derived odd cut operator at odd weight `2r+1`. -/
+def oddCoactionCut (Δ : CoactionMap) (r : ℕ) (m : MotivicMZV) : TensorElement :=
+  coactionRightWeightSlice Δ (2 * r + 1) m
+
+/-- Candidate Brown-style weight-lowering derivation induced by odd coaction cuts.
+    This is intentionally separated from the legacy weight-raising Ihara model. -/
+def weightLoweringOddDerivationCandidate
+    (Δ : CoactionMap) (r : ℕ) (m : MotivicMZV) : MotivicMZV where
+  formal := leftFormalProjection (oddCoactionCut Δ r m)
+  weight := m.weight - (2 * r + 1)
+  depth := m.depth
+
+/-- Family form of the coaction-derived weight-lowering odd cut operator. -/
+def weightLoweringOddDerivationFamily (Δ : CoactionMap) :
+    ℕ → MotivicMZV → MotivicMZV :=
+  fun r m => weightLoweringOddDerivationCandidate Δ r m
+
+@[simp] theorem weightLoweringOddDerivationCandidate_depth
+    (Δ : CoactionMap) (r : ℕ) (m : MotivicMZV) :
+    (weightLoweringOddDerivationCandidate Δ r m).depth = m.depth := rfl
+
+@[simp] theorem weightLoweringOddDerivationCandidate_weight
+    (Δ : CoactionMap) (r : ℕ) (m : MotivicMZV) :
+    (weightLoweringOddDerivationCandidate Δ r m).weight = m.weight - (2 * r + 1) := rfl
+
+theorem weightLoweringOddDerivationCandidate_weight_le
+    (Δ : CoactionMap) (r : ℕ) (m : MotivicMZV) :
+    (weightLoweringOddDerivationCandidate Δ r m).weight ≤ m.weight := by
+  simp [weightLoweringOddDerivationCandidate]
+
+theorem weightLoweringOddDerivationCandidate_weight_eq_zero_of_lt
+    (Δ : CoactionMap) (r : ℕ) (m : MotivicMZV)
+    (h : m.weight < 2 * r + 1) :
+    (weightLoweringOddDerivationCandidate Δ r m).weight = 0 := by
+  simp [weightLoweringOddDerivationCandidate, Nat.sub_eq_zero_of_le (Nat.le_of_lt h)]
+
+theorem weightLoweringOddDerivationFamily_weight
+    (Δ : CoactionMap) (r : ℕ) (m : MotivicMZV) :
+    (weightLoweringOddDerivationFamily Δ r m).weight = m.weight - (2 * r + 1) := by
+  rfl
+
+/-- Well-formedness transfer for the coaction-derived odd weight-lowering candidate,
+    under explicit left-factor boundedness assumptions on the odd coaction cut. -/
+theorem weightLoweringOddDerivationCandidate_wellFormed_of_leftFactorBounds
+    (Δ : CoactionMap) (r : ℕ) (m : MotivicMZV)
+    (hleftWeight :
+      ∀ q : ℚ, ∀ a b : MotivicMZV,
+        (q, a, b) ∈ oddCoactionCut Δ r m → a.weight ≤ m.weight - (2 * r + 1))
+    (hleftDepth :
+      ∀ q : ℚ, ∀ a b : MotivicMZV,
+        (q, a, b) ∈ oddCoactionCut Δ r m → a.depth ≤ m.depth)
+    (hleftWell :
+      ∀ q : ℚ, ∀ a b : MotivicMZV,
+        (q, a, b) ∈ oddCoactionCut Δ r m → MotivicMZV.WellFormed a) :
+    MotivicMZV.WellFormed (weightLoweringOddDerivationCandidate Δ r m) := by
+  constructor
+  · intro q s hs
+    exact weightBounded_leftFormalProjection_of_leftFactor
+      (oddCoactionCut Δ r m) (m.weight - (2 * r + 1))
+      hleftWeight hleftWell q s (by simpa [weightLoweringOddDerivationCandidate] using hs)
+  · intro q s hs
+    exact depthBounded_leftFormalProjection_of_leftFactor
+      (oddCoactionCut Δ r m) m.depth
+      hleftDepth hleftWell q s (by simpa [weightLoweringOddDerivationCandidate] using hs)
+
 /-- Primitive-fragment agreement implies coassociativity in the current model. -/
 theorem isCoassociative_of_primitive_fragment
     {Δ : CoactionMap} (hΔ : IsPrimitiveFragment Δ) :
