@@ -4027,6 +4027,35 @@ theorem report_consistency_7_to_6_r0_matches_expectedInjectiveStatus :
     _ = some report_consistency_7_to_6_r0.matrixReport.injectiveStatus := by
           simp [report_consistency_7_to_6_r0_status_is_proved]
 
+/-- Expected-status matching for a generated low-weight consistency report key. -/
+theorem lowWeightConsistencyReportOfKey_matches_expectedInjectiveStatus
+    (k : LowWeightStepKey) :
+    LowWeightConsistencyReport.expectedInjectiveStatusForConsistencyName
+        (lowWeightConsistencyReportOfKey k).name =
+      some (lowWeightConsistencyReportOfKey k).matrixReport.injectiveStatus := by
+  cases k
+  · simpa [lowWeightConsistencyReportOfKey_k3] using
+      report_consistency_3_to_2_r0_matches_expectedInjectiveStatus
+  · simpa [lowWeightConsistencyReportOfKey_k5] using
+      report_consistency_5_to_4_r0_matches_expectedInjectiveStatus
+  · simpa [lowWeightConsistencyReportOfKey_k6r0] using
+      report_consistency_6_to_5_r0_matches_expectedInjectiveStatus
+  · simpa [lowWeightConsistencyReportOfKey_k6r1] using
+      report_consistency_6_to_5_r1_matches_expectedInjectiveStatus
+  · simpa [lowWeightConsistencyReportOfKey_k7] using
+      report_consistency_7_to_6_r0_matches_expectedInjectiveStatus
+
+/-- Any key-generated consistency-report family satisfies expected-status matching. -/
+theorem lowWeightConsistencyReports_of_keys_status_match_expected
+    (ks : List LowWeightStepKey) :
+    ∀ R ∈ ks.map lowWeightConsistencyReportOfKey,
+      LowWeightConsistencyReport.expectedInjectiveStatusForConsistencyName R.name =
+        some R.matrixReport.injectiveStatus := by
+  intro R hR
+  rcases List.mem_map.mp hR with ⟨k, hk, hkR⟩
+  subst hkR
+  exact lowWeightConsistencyReportOfKey_matches_expectedInjectiveStatus k
+
 /-- Number of joined reports whose matrix status matches the expected classifier. -/
 def lowWeightExpectedInjectiveStatusMatchCount : ℕ :=
   (lowWeightConsistencyReports.filter (fun R =>
@@ -4044,19 +4073,8 @@ theorem lowWeightConsistencyReports_status_match_expected :
     ∀ R ∈ lowWeightConsistencyReports,
       LowWeightConsistencyReport.expectedInjectiveStatusForConsistencyName R.name =
         some R.matrixReport.injectiveStatus := by
-  intro R hR
-  have hcases :
-      R = report_consistency_3_to_2_r0 ∨
-        R = report_consistency_5_to_4_r0 ∨
-        R = report_consistency_6_to_5_r0 := by
-    simpa [lowWeightConsistencyReports, List.mem_cons] using hR
-  rcases hcases with h | h | h
-  · subst h
-    exact report_consistency_3_to_2_r0_matches_expectedInjectiveStatus
-  · subst h
-    exact report_consistency_5_to_4_r0_matches_expectedInjectiveStatus
-  · subst h
-    exact report_consistency_6_to_5_r0_matches_expectedInjectiveStatus
+  simpa [lowWeightConsistencyReports] using
+    (lowWeightConsistencyReports_of_keys_status_match_expected lowWeightReportKeys)
 
 /-- Number of extended joined reports whose matrix status matches the expected classifier. -/
 def lowWeightExpectedInjectiveStatusMatchCountExtended : ℕ :=
@@ -4076,22 +4094,8 @@ theorem lowWeightConsistencyReportsExtended_status_match_expected :
     ∀ R ∈ lowWeightConsistencyReportsExtended,
       LowWeightConsistencyReport.expectedInjectiveStatusForConsistencyName R.name =
         some R.matrixReport.injectiveStatus := by
-  intro R hR
-  have hcases :
-      R = report_consistency_3_to_2_r0 ∨
-        R = report_consistency_5_to_4_r0 ∨
-        R = report_consistency_6_to_5_r0 ∨
-        R = report_consistency_6_to_5_r1 := by
-    simpa [lowWeightConsistencyReportsExtended, List.mem_cons] using hR
-  rcases hcases with h | h | h | h
-  · subst h
-    exact report_consistency_3_to_2_r0_matches_expectedInjectiveStatus
-  · subst h
-    exact report_consistency_5_to_4_r0_matches_expectedInjectiveStatus
-  · subst h
-    exact report_consistency_6_to_5_r0_matches_expectedInjectiveStatus
-  · subst h
-    exact report_consistency_6_to_5_r1_matches_expectedInjectiveStatus
+  simpa [lowWeightConsistencyReportsExtended] using
+    (lowWeightConsistencyReports_of_keys_status_match_expected lowWeightReportKeysExtended)
 
 /-- Number of augmented joined reports whose matrix status matches the expected classifier. -/
 def lowWeightExpectedInjectiveStatusMatchCountAugmented : ℕ :=
@@ -4112,25 +4116,8 @@ theorem lowWeightConsistencyReportsAugmented_status_match_expected :
     ∀ R ∈ lowWeightConsistencyReportsAugmented,
       LowWeightConsistencyReport.expectedInjectiveStatusForConsistencyName R.name =
         some R.matrixReport.injectiveStatus := by
-  intro R hR
-  have hcases :
-      R = report_consistency_3_to_2_r0 ∨
-        R = report_consistency_5_to_4_r0 ∨
-        R = report_consistency_6_to_5_r0 ∨
-        R = report_consistency_6_to_5_r1 ∨
-        R = report_consistency_7_to_6_r0 := by
-    simpa [lowWeightConsistencyReportsAugmented, List.mem_cons] using hR
-  rcases hcases with h | h | h | h | h
-  · subst h
-    exact report_consistency_3_to_2_r0_matches_expectedInjectiveStatus
-  · subst h
-    exact report_consistency_5_to_4_r0_matches_expectedInjectiveStatus
-  · subst h
-    exact report_consistency_6_to_5_r0_matches_expectedInjectiveStatus
-  · subst h
-    exact report_consistency_6_to_5_r1_matches_expectedInjectiveStatus
-  · subst h
-    exact report_consistency_7_to_6_r0_matches_expectedInjectiveStatus
+  simpa [lowWeightConsistencyReportsAugmented] using
+    (lowWeightConsistencyReports_of_keys_status_match_expected lowWeightReportKeysAugmented)
 
 /-- Orientation-aware consistency certificate for a joined low-weight report. -/
 def LowWeightConsistencyReport.orientationAwareCertificate
