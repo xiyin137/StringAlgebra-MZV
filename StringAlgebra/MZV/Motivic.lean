@@ -4341,65 +4341,64 @@ theorem LowWeightConsistencyReport.injectiveStatus_proved_of_trustedPipeline_squ
     R.matrixReport.injectiveStatus = PropStatus.proved := by
   exact (htrusted.1.2.2.1 hflag) hsquare
 
+/-- Every generated low-weight consistency report key appears in the augmented list. -/
+theorem lowWeightConsistencyReportOfKey_mem_augmented (k : LowWeightStepKey) :
+    lowWeightConsistencyReportOfKey k ∈ lowWeightConsistencyReportsAugmented := by
+  cases k <;> simp [lowWeightConsistencyReportsAugmented_eq]
+
+/-- Trusted-pipeline status extraction for a generated low-weight consistency report. -/
+theorem lowWeightConsistencyReportOfKey_status_from_trustedPipeline
+    (k : LowWeightStepKey) :
+    (lowWeightConsistencyReportOfKey k).matrixReport.injectiveStatus =
+      match k with
+      | .k3_to_2_r0 => PropStatus.proved
+      | .k5_to_4_r0 => PropStatus.proved
+      | .k6_to_5_r0 => PropStatus.refuted
+      | .k6_to_5_r1 => PropStatus.refuted
+      | .k7_to_6_r0 => PropStatus.proved := by
+  have hmem : lowWeightConsistencyReportOfKey k ∈ lowWeightConsistencyReportsAugmented :=
+    lowWeightConsistencyReportOfKey_mem_augmented k
+  have htrusted :
+      LowWeightConsistencyReport.trustedPipelineProp (lowWeightConsistencyReportOfKey k) :=
+    lowWeightConsistencyReportsAugmented_all_trustedPipeline (lowWeightConsistencyReportOfKey k) hmem
+  have hmatch :
+      LowWeightConsistencyReport.expectedInjectiveStatusForConsistencyName
+          (lowWeightConsistencyReportOfKey k).name =
+        some (lowWeightConsistencyReportOfKey k).matrixReport.injectiveStatus :=
+    LowWeightConsistencyReport.expectedStatusMatch_of_trustedPipeline
+      (lowWeightConsistencyReportOfKey k) htrusted
+  cases k <;>
+    simp [lowWeightConsistencyReportOfKey,
+      report_consistency_3_to_2_r0, report_consistency_5_to_4_r0,
+      report_consistency_6_to_5_r0, report_consistency_6_to_5_r1,
+      report_consistency_7_to_6_r0,
+      LowWeightConsistencyReport.expectedInjectiveStatusForConsistencyName] at hmatch ⊢ <;>
+    simpa using hmatch.symm
+
 theorem report_consistency_3_to_2_r0_status_is_proved_from_trustedPipeline :
     report_consistency_3_to_2_r0.matrixReport.injectiveStatus = PropStatus.proved := by
-  have hmem : report_consistency_3_to_2_r0 ∈ lowWeightConsistencyReports := by
-    simp [lowWeightConsistencyReports]
-  have htrusted :
-      LowWeightConsistencyReport.trustedPipelineProp report_consistency_3_to_2_r0 :=
-    lowWeightConsistencyReports_all_trustedPipeline report_consistency_3_to_2_r0 hmem
-  exact LowWeightConsistencyReport.injectiveStatus_proved_of_trustedPipeline_square
-    report_consistency_3_to_2_r0 htrusted rfl rfl
+  simpa [lowWeightConsistencyReportOfKey_k3] using
+    (lowWeightConsistencyReportOfKey_status_from_trustedPipeline .k3_to_2_r0)
 
 theorem report_consistency_5_to_4_r0_status_is_proved_from_trustedPipeline :
     report_consistency_5_to_4_r0.matrixReport.injectiveStatus = PropStatus.proved := by
-  have hmem : report_consistency_5_to_4_r0 ∈ lowWeightConsistencyReports := by
-    simp [lowWeightConsistencyReports]
-  have htrusted :
-      LowWeightConsistencyReport.trustedPipelineProp report_consistency_5_to_4_r0 :=
-    lowWeightConsistencyReports_all_trustedPipeline report_consistency_5_to_4_r0 hmem
-  have hexpected :
-      LowWeightConsistencyReport.expectedInjectiveStatusForConsistencyName
-          report_consistency_5_to_4_r0.name = some PropStatus.proved := by
-    simp [LowWeightConsistencyReport.expectedInjectiveStatusForConsistencyName,
-      report_consistency_5_to_4_r0]
-  exact LowWeightConsistencyReport.injectiveStatus_of_trustedPipeline_when_expected
-    report_consistency_5_to_4_r0 htrusted PropStatus.proved hexpected
+  simpa [lowWeightConsistencyReportOfKey_k5] using
+    (lowWeightConsistencyReportOfKey_status_from_trustedPipeline .k5_to_4_r0)
 
 theorem report_consistency_6_to_5_r0_status_is_refuted_from_trustedPipeline :
     report_consistency_6_to_5_r0.matrixReport.injectiveStatus = PropStatus.refuted := by
-  have hmem : report_consistency_6_to_5_r0 ∈ lowWeightConsistencyReports := by
-    simp [lowWeightConsistencyReports]
-  have htrusted :
-      LowWeightConsistencyReport.trustedPipelineProp report_consistency_6_to_5_r0 :=
-    lowWeightConsistencyReports_all_trustedPipeline report_consistency_6_to_5_r0 hmem
-  exact LowWeightConsistencyReport.injectiveStatus_refuted_of_trustedPipeline_wide
-    report_consistency_6_to_5_r0 htrusted report_consistency_6_to_5_r0_wideShape
+  simpa [lowWeightConsistencyReportOfKey_k6r0] using
+    (lowWeightConsistencyReportOfKey_status_from_trustedPipeline .k6_to_5_r0)
 
 theorem report_consistency_6_to_5_r1_status_is_refuted_from_trustedPipeline :
     report_consistency_6_to_5_r1.matrixReport.injectiveStatus = PropStatus.refuted := by
-  have hmem : report_consistency_6_to_5_r1 ∈ lowWeightConsistencyReportsExtended := by
-    simp [lowWeightConsistencyReportsExtended]
-  have htrusted :
-      LowWeightConsistencyReport.trustedPipelineProp report_consistency_6_to_5_r1 :=
-    lowWeightConsistencyReportsExtended_all_trustedPipeline report_consistency_6_to_5_r1 hmem
-  exact LowWeightConsistencyReport.injectiveStatus_refuted_of_trustedPipeline_wide
-    report_consistency_6_to_5_r1 htrusted report_consistency_6_to_5_r1_wideShape
+  simpa [lowWeightConsistencyReportOfKey_k6r1] using
+    (lowWeightConsistencyReportOfKey_status_from_trustedPipeline .k6_to_5_r1)
 
 theorem report_consistency_7_to_6_r0_status_is_proved_from_trustedPipeline :
     report_consistency_7_to_6_r0.matrixReport.injectiveStatus = PropStatus.proved := by
-  have hmem : report_consistency_7_to_6_r0 ∈ lowWeightConsistencyReportsAugmented := by
-    simp [lowWeightConsistencyReportsAugmented]
-  have htrusted :
-      LowWeightConsistencyReport.trustedPipelineProp report_consistency_7_to_6_r0 :=
-    lowWeightConsistencyReportsAugmented_all_trustedPipeline report_consistency_7_to_6_r0 hmem
-  have hexpected :
-      LowWeightConsistencyReport.expectedInjectiveStatusForConsistencyName
-          report_consistency_7_to_6_r0.name = some PropStatus.proved := by
-    simp [LowWeightConsistencyReport.expectedInjectiveStatusForConsistencyName,
-      report_consistency_7_to_6_r0]
-  exact LowWeightConsistencyReport.injectiveStatus_of_trustedPipeline_when_expected
-    report_consistency_7_to_6_r0 htrusted PropStatus.proved hexpected
+  simpa [lowWeightConsistencyReportOfKey_k7] using
+    (lowWeightConsistencyReportOfKey_status_from_trustedPipeline .k7_to_6_r0)
 
 /-- Bundled concrete statuses derived from the trusted low-weight pipeline. -/
 theorem lowWeightTrustedPipeline_concrete_statuses :

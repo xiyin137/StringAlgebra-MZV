@@ -43,7 +43,10 @@ Source: `claude_to_codex.md`
      - unified key-indexed generators for low-weight step reports, matrix-injectivity reports,
        and consistency reports;
      - canonical key lists now drive core/extended/augmented report families;
-     - added simp-normalization lemmas so downstream proofs use generated lists transparently.
+     - added simp-normalization lemmas so downstream proofs use generated lists transparently;
+     - added key-indexed trusted-pipeline status extraction
+       (`lowWeightConsistencyReportOfKey_status_from_trustedPipeline`) so per-report
+       trusted-status theorems are now thin specializations.
    - Full tactic/metaprogram abstraction is still open.
 
 4. Unverified weight/depth metadata status: partially addressed
