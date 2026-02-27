@@ -4453,8 +4453,7 @@ theorem lowWeightExtendedInjectivityCountIndex_eval :
   · simpa [lowWeightExtendedInjectivityCountIndex] using lowWeightInjectiveProvedCountExtended_eval
   · simpa [lowWeightExtendedInjectivityCountIndex] using lowWeightInjectiveRefutedCountExtended_eval
   · simpa [lowWeightExtendedInjectivityCountIndex] using lowWeightInjectiveUnknownCountExtended_eval
-  · simpa [lowWeightExtendedInjectivityCountIndex] using
-      lowWeightMatrixInjectivityReportsExtended_length_eval
+  · simp [lowWeightExtendedInjectivityCountIndex]
 
 /-- Theorem-index bundle for extended low-weight matrix-injectivity statements. -/
 structure LowWeightExtendedInjectivityTheoremIndex where
@@ -4531,10 +4530,9 @@ theorem lowWeightExtendedConsistencyCountIndex_eval :
       lowWeightSquareStatusConsistentFlagCountExtended_eval
   · simpa [lowWeightExtendedConsistencyCountIndex] using
       lowWeightTransposeShapeAlignedFlagCountExtended_eval
-  · simpa [lowWeightExtendedConsistencyCountIndex] using
-      lowWeightExpectedInjectiveStatusMatchCountExtended_eval
-  · simpa [lowWeightExtendedConsistencyCountIndex] using
-      lowWeightConsistencyReportsExtended_length_eval
+  · simp [lowWeightExtendedConsistencyCountIndex,
+      lowWeightExpectedInjectiveStatusMatchCountExtended_eval]
+  · simp [lowWeightExtendedConsistencyCountIndex]
 
 /-- Theorem-index bundle for extended low-weight consistency statements. -/
 structure LowWeightExtendedConsistencyTheoremIndex where
@@ -4616,10 +4614,9 @@ theorem lowWeightAugmentedConsistencyCountIndex_eval :
       lowWeightSquareStatusConsistentFlagCountAugmented_eval
   · simpa [lowWeightAugmentedConsistencyCountIndex] using
       lowWeightTransposeShapeAlignedFlagCountAugmented_eval
-  · simpa [lowWeightAugmentedConsistencyCountIndex] using
-      lowWeightExpectedInjectiveStatusMatchCountAugmented_eval
-  · simpa [lowWeightAugmentedConsistencyCountIndex] using
-      lowWeightConsistencyReportsAugmented_length_eval
+  · simp [lowWeightAugmentedConsistencyCountIndex,
+      lowWeightExpectedInjectiveStatusMatchCountAugmented_eval]
+  · simp [lowWeightAugmentedConsistencyCountIndex]
 
 /-- Theorem-index bundle for augmented low-weight consistency statements. -/
 structure LowWeightAugmentedConsistencyTheoremIndex where
