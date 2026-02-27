@@ -53,6 +53,9 @@ Source: `claude_to_codex.md`
      - factored expected-status coverage proofs through a generic key-list lemma
        (`lowWeightConsistencyReports_of_keys_status_match_expected`) instead of per-list
        hand-written case splits.
+     - factored flag-soundness coverage proofs through a generic key-list lemma
+       (`lowWeightConsistencyReports_of_keys_all_flags_sound`) instead of per-list
+       hand-written case splits.
    - Full tactic/metaprogram abstraction is still open.
 
 4. Unverified weight/depth metadata status: partially addressed
@@ -78,5 +81,5 @@ Source: `claude_to_codex.md`
 1. Build: `lake build StringAlgebra.MZV` passes.
 2. `sorry` count: `0`.
 3. `def ... : Prop` count: `90`.
-4. `theorem` count: `518`.
+4. `theorem` count: `520`.
 5. `native_decide` count in `StringAlgebra/MZV/Motivic.lean`: `11`.

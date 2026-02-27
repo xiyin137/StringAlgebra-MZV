@@ -3764,49 +3764,65 @@ theorem lowWeightTransposeShapeAlignedFlagCountAugmented_eval :
     report_consistency_6_to_5_r0, report_consistency_6_to_5_r1,
     report_consistency_7_to_6_r0]
 
+/-- Flag-soundness extraction for a generated low-weight consistency report. -/
+theorem lowWeightConsistencyReportOfKey_all_flags_sound
+    (k : LowWeightStepKey) :
+    ((lowWeightConsistencyReportOfKey k).matrixAligned = true →
+      (lowWeightConsistencyReportOfKey k).matrixAlignedProp) ∧
+      ((lowWeightConsistencyReportOfKey k).wideNonSquareConsistent = true →
+        (lowWeightConsistencyReportOfKey k).wideNonSquareConsistentProp) ∧
+      ((lowWeightConsistencyReportOfKey k).squareStatusConsistent = true →
+        (lowWeightConsistencyReportOfKey k).squareStatusConsistentProp) ∧
+      ((lowWeightConsistencyReportOfKey k).transposeShapeAligned = true →
+        (lowWeightConsistencyReportOfKey k).transposeShapeAlignedProp) := by
+  cases k
+  · refine ⟨?_, ?_, ?_, ?_⟩
+    · intro _hflag; exact (report_consistency_3_to_2_r0_matrixAligned_sound).2
+    · intro _hflag; exact (report_consistency_3_to_2_r0_wideNonSquare_sound).2
+    · intro _hflag; exact (report_consistency_3_to_2_r0_squareStatus_sound).2
+    · intro _hflag; exact (report_consistency_3_to_2_r0_transposeShapeAligned_sound).2
+  · refine ⟨?_, ?_, ?_, ?_⟩
+    · intro _hflag; exact (report_consistency_5_to_4_r0_matrixAligned_sound).2
+    · intro _hflag; exact (report_consistency_5_to_4_r0_wideNonSquare_sound).2
+    · intro _hflag; exact (report_consistency_5_to_4_r0_squareStatus_sound).2
+    · intro _hflag; exact (report_consistency_5_to_4_r0_transposeShapeAligned_sound).2
+  · refine ⟨?_, ?_, ?_, ?_⟩
+    · intro _hflag; exact (report_consistency_6_to_5_r0_matrixAligned_sound).2
+    · intro _hflag; exact (report_consistency_6_to_5_r0_wideNonSquare_sound).2
+    · intro _hflag; exact (report_consistency_6_to_5_r0_squareStatus_sound).2
+    · intro _hflag; exact (report_consistency_6_to_5_r0_transposeShapeAligned_sound).2
+  · refine ⟨?_, ?_, ?_, ?_⟩
+    · intro _hflag; exact (report_consistency_6_to_5_r1_matrixAligned_sound).2
+    · intro _hflag; exact (report_consistency_6_to_5_r1_wideNonSquare_sound).2
+    · intro _hflag; exact (report_consistency_6_to_5_r1_squareStatus_sound).2
+    · intro _hflag; exact (report_consistency_6_to_5_r1_transposeShapeAligned_sound).2
+  · refine ⟨?_, ?_, ?_, ?_⟩
+    · intro _hflag; exact (report_consistency_7_to_6_r0_matrixAligned_sound).2
+    · intro _hflag; exact (report_consistency_7_to_6_r0_wideNonSquare_sound).2
+    · intro _hflag; exact (report_consistency_7_to_6_r0_squareStatus_sound).2
+    · intro _hflag; exact (report_consistency_7_to_6_r0_transposeShapeAligned_sound).2
+
+/-- Any key-generated consistency-report family inherits flag soundness. -/
+theorem lowWeightConsistencyReports_of_keys_all_flags_sound
+    (ks : List LowWeightStepKey) :
+    ∀ R ∈ ks.map lowWeightConsistencyReportOfKey,
+      (R.matrixAligned = true → R.matrixAlignedProp) ∧
+      (R.wideNonSquareConsistent = true → R.wideNonSquareConsistentProp) ∧
+      (R.squareStatusConsistent = true → R.squareStatusConsistentProp) ∧
+      (R.transposeShapeAligned = true → R.transposeShapeAlignedProp) := by
+  intro R hR
+  rcases List.mem_map.mp hR with ⟨k, hk, hkR⟩
+  subst hkR
+  exact lowWeightConsistencyReportOfKey_all_flags_sound k
+
 theorem lowWeightConsistencyReports_all_flags_sound :
     ∀ R ∈ lowWeightConsistencyReports,
       (R.matrixAligned = true → R.matrixAlignedProp) ∧
       (R.wideNonSquareConsistent = true → R.wideNonSquareConsistentProp) ∧
       (R.squareStatusConsistent = true → R.squareStatusConsistentProp) ∧
       (R.transposeShapeAligned = true → R.transposeShapeAlignedProp) := by
-  intro R hR
-  have hcases :
-      R = report_consistency_3_to_2_r0 ∨
-        R = report_consistency_5_to_4_r0 ∨
-        R = report_consistency_6_to_5_r0 := by
-    simpa [lowWeightConsistencyReports, List.mem_cons] using hR
-  rcases hcases with h | h | h
-  · subst h
-    refine ⟨?_, ?_, ?_, ?_⟩
-    · intro _hflag
-      exact (report_consistency_3_to_2_r0_matrixAligned_sound).2
-    · intro _hflag
-      exact (report_consistency_3_to_2_r0_wideNonSquare_sound).2
-    · intro _hflag
-      exact (report_consistency_3_to_2_r0_squareStatus_sound).2
-    · intro _hflag
-      exact (report_consistency_3_to_2_r0_transposeShapeAligned_sound).2
-  · subst h
-    refine ⟨?_, ?_, ?_, ?_⟩
-    · intro _hflag
-      exact (report_consistency_5_to_4_r0_matrixAligned_sound).2
-    · intro _hflag
-      exact (report_consistency_5_to_4_r0_wideNonSquare_sound).2
-    · intro _hflag
-      exact (report_consistency_5_to_4_r0_squareStatus_sound).2
-    · intro _hflag
-      exact (report_consistency_5_to_4_r0_transposeShapeAligned_sound).2
-  · subst h
-    refine ⟨?_, ?_, ?_, ?_⟩
-    · intro _hflag
-      exact (report_consistency_6_to_5_r0_matrixAligned_sound).2
-    · intro _hflag
-      exact (report_consistency_6_to_5_r0_wideNonSquare_sound).2
-    · intro _hflag
-      exact (report_consistency_6_to_5_r0_squareStatus_sound).2
-    · intro _hflag
-      exact (report_consistency_6_to_5_r0_transposeShapeAligned_sound).2
+  simpa [lowWeightConsistencyReports] using
+    (lowWeightConsistencyReports_of_keys_all_flags_sound lowWeightReportKeys)
 
 theorem lowWeightConsistencyReportsExtended_all_flags_sound :
     ∀ R ∈ lowWeightConsistencyReportsExtended,
@@ -3814,54 +3830,8 @@ theorem lowWeightConsistencyReportsExtended_all_flags_sound :
       (R.wideNonSquareConsistent = true → R.wideNonSquareConsistentProp) ∧
       (R.squareStatusConsistent = true → R.squareStatusConsistentProp) ∧
       (R.transposeShapeAligned = true → R.transposeShapeAlignedProp) := by
-  intro R hR
-  have hcases :
-      R = report_consistency_3_to_2_r0 ∨
-        R = report_consistency_5_to_4_r0 ∨
-        R = report_consistency_6_to_5_r0 ∨
-        R = report_consistency_6_to_5_r1 := by
-    simpa [lowWeightConsistencyReportsExtended, List.mem_cons] using hR
-  rcases hcases with h | h | h | h
-  · subst h
-    refine ⟨?_, ?_, ?_, ?_⟩
-    · intro _hflag
-      exact (report_consistency_3_to_2_r0_matrixAligned_sound).2
-    · intro _hflag
-      exact (report_consistency_3_to_2_r0_wideNonSquare_sound).2
-    · intro _hflag
-      exact (report_consistency_3_to_2_r0_squareStatus_sound).2
-    · intro _hflag
-      exact (report_consistency_3_to_2_r0_transposeShapeAligned_sound).2
-  · subst h
-    refine ⟨?_, ?_, ?_, ?_⟩
-    · intro _hflag
-      exact (report_consistency_5_to_4_r0_matrixAligned_sound).2
-    · intro _hflag
-      exact (report_consistency_5_to_4_r0_wideNonSquare_sound).2
-    · intro _hflag
-      exact (report_consistency_5_to_4_r0_squareStatus_sound).2
-    · intro _hflag
-      exact (report_consistency_5_to_4_r0_transposeShapeAligned_sound).2
-  · subst h
-    refine ⟨?_, ?_, ?_, ?_⟩
-    · intro _hflag
-      exact (report_consistency_6_to_5_r0_matrixAligned_sound).2
-    · intro _hflag
-      exact (report_consistency_6_to_5_r0_wideNonSquare_sound).2
-    · intro _hflag
-      exact (report_consistency_6_to_5_r0_squareStatus_sound).2
-    · intro _hflag
-      exact (report_consistency_6_to_5_r0_transposeShapeAligned_sound).2
-  · subst h
-    refine ⟨?_, ?_, ?_, ?_⟩
-    · intro _hflag
-      exact (report_consistency_6_to_5_r1_matrixAligned_sound).2
-    · intro _hflag
-      exact (report_consistency_6_to_5_r1_wideNonSquare_sound).2
-    · intro _hflag
-      exact (report_consistency_6_to_5_r1_squareStatus_sound).2
-    · intro _hflag
-      exact (report_consistency_6_to_5_r1_transposeShapeAligned_sound).2
+  simpa [lowWeightConsistencyReportsExtended] using
+    (lowWeightConsistencyReports_of_keys_all_flags_sound lowWeightReportKeysExtended)
 
 theorem lowWeightConsistencyReportsAugmented_all_flags_sound :
     ∀ R ∈ lowWeightConsistencyReportsAugmented,
@@ -3869,65 +3839,8 @@ theorem lowWeightConsistencyReportsAugmented_all_flags_sound :
       (R.wideNonSquareConsistent = true → R.wideNonSquareConsistentProp) ∧
       (R.squareStatusConsistent = true → R.squareStatusConsistentProp) ∧
       (R.transposeShapeAligned = true → R.transposeShapeAlignedProp) := by
-  intro R hR
-  have hcases :
-      R = report_consistency_3_to_2_r0 ∨
-        R = report_consistency_5_to_4_r0 ∨
-        R = report_consistency_6_to_5_r0 ∨
-        R = report_consistency_6_to_5_r1 ∨
-        R = report_consistency_7_to_6_r0 := by
-    simpa [lowWeightConsistencyReportsAugmented, List.mem_cons] using hR
-  rcases hcases with h | h | h | h | h
-  · subst h
-    refine ⟨?_, ?_, ?_, ?_⟩
-    · intro _hflag
-      exact (report_consistency_3_to_2_r0_matrixAligned_sound).2
-    · intro _hflag
-      exact (report_consistency_3_to_2_r0_wideNonSquare_sound).2
-    · intro _hflag
-      exact (report_consistency_3_to_2_r0_squareStatus_sound).2
-    · intro _hflag
-      exact (report_consistency_3_to_2_r0_transposeShapeAligned_sound).2
-  · subst h
-    refine ⟨?_, ?_, ?_, ?_⟩
-    · intro _hflag
-      exact (report_consistency_5_to_4_r0_matrixAligned_sound).2
-    · intro _hflag
-      exact (report_consistency_5_to_4_r0_wideNonSquare_sound).2
-    · intro _hflag
-      exact (report_consistency_5_to_4_r0_squareStatus_sound).2
-    · intro _hflag
-      exact (report_consistency_5_to_4_r0_transposeShapeAligned_sound).2
-  · subst h
-    refine ⟨?_, ?_, ?_, ?_⟩
-    · intro _hflag
-      exact (report_consistency_6_to_5_r0_matrixAligned_sound).2
-    · intro _hflag
-      exact (report_consistency_6_to_5_r0_wideNonSquare_sound).2
-    · intro _hflag
-      exact (report_consistency_6_to_5_r0_squareStatus_sound).2
-    · intro _hflag
-      exact (report_consistency_6_to_5_r0_transposeShapeAligned_sound).2
-  · subst h
-    refine ⟨?_, ?_, ?_, ?_⟩
-    · intro _hflag
-      exact (report_consistency_6_to_5_r1_matrixAligned_sound).2
-    · intro _hflag
-      exact (report_consistency_6_to_5_r1_wideNonSquare_sound).2
-    · intro _hflag
-      exact (report_consistency_6_to_5_r1_squareStatus_sound).2
-    · intro _hflag
-      exact (report_consistency_6_to_5_r1_transposeShapeAligned_sound).2
-  · subst h
-    refine ⟨?_, ?_, ?_, ?_⟩
-    · intro _hflag
-      exact (report_consistency_7_to_6_r0_matrixAligned_sound).2
-    · intro _hflag
-      exact (report_consistency_7_to_6_r0_wideNonSquare_sound).2
-    · intro _hflag
-      exact (report_consistency_7_to_6_r0_squareStatus_sound).2
-    · intro _hflag
-      exact (report_consistency_7_to_6_r0_transposeShapeAligned_sound).2
+  simpa [lowWeightConsistencyReportsAugmented] using
+    (lowWeightConsistencyReports_of_keys_all_flags_sound lowWeightReportKeysAugmented)
 
 /-- Expected injectivity status by joined low-weight consistency report name. -/
 def LowWeightConsistencyReport.expectedInjectiveStatusForConsistencyName
