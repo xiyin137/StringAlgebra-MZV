@@ -122,10 +122,32 @@ def ofList (l : List Composition) : FormalSum :=
   l.map fun s => (1, s)
 
 /-- Check if two formal sums are equivalent (equal after normalization) -/
-def equiv (f g : FormalSum) : Bool :=
+def heuristicEquiv (f g : FormalSum) : Bool :=
   let nf := normalize f
   let ng := normalize g
   nf.length = ng.length ∧ nf.all (ng.contains ·)
+
+/-- Formal-sum evaluation against a coefficient map. -/
+def eval (ζ : Composition → ℚ) (f : FormalSum) : ℚ :=
+  List.sum (f.map fun (c, s) => c * ζ s)
+
+/-- Semantic equivalence of formal sums under all coefficient maps. -/
+def Equivalent (f g : FormalSum) : Prop :=
+  ∀ ζ : Composition → ℚ, eval ζ f = eval ζ g
+
+theorem equivalent_refl (f : FormalSum) : Equivalent f f := by
+  intro ζ
+  rfl
+
+theorem equivalent_symm {f g : FormalSum} (h : Equivalent f g) : Equivalent g f := by
+  intro ζ
+  symm
+  exact h ζ
+
+theorem equivalent_trans {f g h : FormalSum}
+    (hfg : Equivalent f g) (hgh : Equivalent g h) : Equivalent f h := by
+  intro ζ
+  exact Eq.trans (hfg ζ) (hgh ζ)
 
 /-- The total coefficient sum (useful for checking relations) -/
 def totalCoeff (f : FormalSum) : ℚ :=
@@ -186,11 +208,28 @@ end FormalSum
 
 /-! ## Shuffle Product on Formal Sums -/
 
-/-- Shuffle product on compositions (using the generic shuffle on lists).
+/-- Shuffle product on compositions induced from shuffling the associated `{0,1}` words.
 
-    This is the shuffle of compositions viewed as lists of ℕ+. -/
+    This is the mathematically relevant shuffle for MZVs: convert compositions to
+    iterated-integral words, shuffle those words, then decode the result back to
+    compositions. -/
 def shuffleComp (s t : Composition) : List Composition :=
-  shuffle s t
+  (shuffle (compositionToWord s) (compositionToWord t)).filterMap wordToComposition
+
+/-- Every term in the shuffle product has the expected total weight. -/
+theorem mem_shuffleComp_weight {s t r : Composition} (hr : r ∈ shuffleComp s t) :
+    r.weight = s.weight + t.weight := by
+  unfold shuffleComp at hr
+  simp only [List.mem_filterMap] at hr
+  rcases hr with ⟨w, hw, hdecode⟩
+  have hlength :
+      w.weight = (compositionToWord s).weight + (compositionToWord t).weight := by
+    simpa [MZVWord.weight] using
+      shuffle_length_eq (compositionToWord s) (compositionToWord t) w hw
+  calc
+    r.weight = w.weight := wordToComposition_weight hdecode
+    _ = (compositionToWord s).weight + (compositionToWord t).weight := hlength
+    _ = s.weight + t.weight := by rw [compositionToWord_weight, compositionToWord_weight]
 
 /-- Extend shuffle to formal sums.
 
@@ -224,6 +263,22 @@ def doubleShuffleRelation (s t : Composition) : FormalSum :=
   let stuffleTerms := FormalSum.ofList (stuffle s t)
   FormalSum.sub shuffleTerms stuffleTerms
 
+/-- Every term appearing in a double shuffle relation has the expected total weight. -/
+theorem mem_doubleShuffleRelation_weight {s t r : Composition} {q : ℚ}
+    (h : (q, r) ∈ doubleShuffleRelation s t) :
+    r.weight = s.weight + t.weight := by
+  unfold doubleShuffleRelation FormalSum.sub FormalSum.add FormalSum.neg FormalSum.ofList at h
+  simp only [List.mem_append, List.mem_map] at h
+  rcases h with h | h
+  · rcases h with ⟨r', hr', hpair⟩
+    cases hpair
+    exact mem_shuffleComp_weight hr'
+  · rcases h with ⟨p, hp, hpair⟩
+    rcases hp with ⟨r', hr', hp'⟩
+    cases hp'
+    cases hpair
+    exact stuffle_weight_eq s t r' hr'
+
 /-- A double shuffle relation is a formal sum that equals zero
     when evaluated on MZVs.
 
@@ -247,37 +302,52 @@ def DoubleShuffleRelation.of (s t : Composition) : DoubleShuffleRelation where
 
 /-! ## Regularization -/
 
-/-- Shuffle regularization for non-admissible compositions.
+/-- Truncation helper used for toy models: keep admissible inputs and drop the rest.
 
-    Uses the iterated integral representation and extends to
-    the boundary by taking regularized limits.
-
-    reg_ш(ζ(1)) is defined such that Chen's lemma still holds. -/
-noncomputable def shuffleRegularization (s : Composition) : FormalSum := by
+    This is not an analytic regularization. It is provided only as a minimal
+    example implementing the regularization interface below. -/
+noncomputable def truncateToAdmissible (s : Composition) : FormalSum := by
   classical
   exact if Composition.isAdmissible s then [(1, s)] else []
 
-/-- Stuffle regularization for non-admissible compositions.
+/-- A choice of shuffle and stuffle regularization procedures.
 
-    Uses harmonic series regularization:
-    ζ*(1) := lim_{n→∞} (H_n - log(n))
-           = γ (Euler's constant)
+    The actual analytic regularizations used in extended double shuffle are not
+    formalized here, so this structure records the interface they should satisfy
+    on admissible inputs. -/
+structure RegularizationModel where
+  shuffleReg : Composition → FormalSum
+  stuffleReg : Composition → FormalSum
+  shuffleReg_admissible :
+    ∀ s : Composition, Composition.isAdmissible s → shuffleReg s = [(1, s)]
+  stuffleReg_admissible :
+    ∀ s : Composition, Composition.isAdmissible s → stuffleReg s = [(1, s)]
 
-    More generally, ζ*(s₁,...,sₖ) with s₁ = 1 is defined by
-    a similar limiting procedure. -/
-noncomputable def stuffleRegularization (s : Composition) : FormalSum := by
-  classical
-  exact if Composition.isAdmissible s then [(1, s)] else []
+/-- A minimal truncation-based regularization model.
+
+    This model is computationally simple but intentionally weaker than analytic
+    shuffle/stuffle regularization on divergent inputs. -/
+noncomputable def truncationRegularizationModel : RegularizationModel where
+  shuffleReg := truncateToAdmissible
+  stuffleReg := truncateToAdmissible
+  shuffleReg_admissible := by
+    intro s hs
+    simp [truncateToAdmissible, hs]
+  stuffleReg_admissible := by
+    intro s hs
+    simp [truncateToAdmissible, hs]
 
 /-- The extended double shuffle (EDS) relations.
 
     Even for non-admissible compositions, the regularized shuffle
     and stuffle must agree:
     reg_ш(Σ_{w ∈ u ш v} ζ(w)) = reg_*(Σ_{s ∈ s * t} ζ(s)) -/
-def extendedDoubleShuffle : Prop :=
+def extendedDoubleShuffle (R : RegularizationModel) (evalReg : FormalSum → ℚ) : Prop :=
   ∀ s t : Composition,
-    shuffleRegularization s ++ stuffleRegularization t =
-      stuffleRegularization t ++ shuffleRegularization s
+    evalReg
+      (FormalSum.sub
+        (shuffleFormal (R.shuffleReg s) (R.shuffleReg t))
+        (stuffleFormal (R.stuffleReg s) (R.stuffleReg t))) = 0
 
 /-! ## Finite Double Shuffle -/
 
@@ -312,11 +382,18 @@ def addAtPositionDS (s : Composition) (i : ℕ) (n : ℕ) : Composition :=
 
 /-- Apply Ihara derivation to a single composition.
 
+    This implementation is a combinatorial weight-raising operator
+    on composition indices. It is not Brown's coaction-derived
+    odd derivation `∂_{2n+1}`.
+
     ∂_n(s₁, ..., sₖ) = Σᵢ (s₁, ..., sᵢ + n, ..., sₖ)
 
     For each position i, we create a term where sᵢ is replaced by sᵢ + n. -/
 def iharaDerivComp (n : ℕ) (s : Composition) : FormalSum :=
   (List.range s.length).map fun i => (1, addAtPositionDS s i n)
+
+/-- Alias emphasizing that `iharaDerivComp` raises composition entries by `n`. -/
+abbrev weightRaiseDerivComp := iharaDerivComp
 
 theorem iharaDerivComp_length (n : ℕ) (s : Composition) :
     (iharaDerivComp n s).length = s.length := by
@@ -324,12 +401,17 @@ theorem iharaDerivComp_length (n : ℕ) (s : Composition) :
 
 /-- The Ihara derivation D_n acts on formal sums of compositions.
 
+    This is the linear extension of `weightRaiseDerivComp`.
+
     D_n(Σ cᵢ sᵢ) = Σᵢ cᵢ · D_n(sᵢ)
 
     where D_n(s) = Σⱼ (s₁,...,sⱼ+n,...,sₖ) sums over all positions. -/
 def iharaDerivation (n : ℕ) (f : FormalSum) : FormalSum :=
   f.flatMap fun (c, s) =>
     (iharaDerivComp n s).map fun (q, t) => (c * q, t)
+
+/-- Alias emphasizing the implemented derivation model is weight-raising. -/
+abbrev weightRaiseDerivation := iharaDerivation
 
 @[simp] theorem iharaDerivation_nil (n : ℕ) :
     iharaDerivation n [] = [] := rfl
@@ -343,15 +425,15 @@ theorem iharaDerivation_append (n : ℕ) (f g : FormalSum) :
     iharaDerivation n (f ++ g) = iharaDerivation n f ++ iharaDerivation n g := by
   simp [iharaDerivation, List.flatMap_append]
 
-/-- Ihara derivations satisfy a Lie algebra structure. -/
-def ihara_lie_algebra : Prop :=
-  ∀ n : ℕ, ∀ f g : FormalSum,
-    iharaDerivation n (f ++ g) = iharaDerivation n f ++ iharaDerivation n g
+/-- The weight-raising derivation is additive on formal sums (linearity).
 
-/-- The implemented Ihara derivation satisfies the additive derivation law
-    on formal sums. -/
-theorem ihara_lie_algebra_holds : ihara_lie_algebra := by
-  intro n f g
+    NOTE: This is NOT the Lie algebra structure of Ihara's derivations.
+    The actual Lie algebra structure requires proving that the commutator
+    [∂_m, ∂_n] = (m-n)∂_{m+n} (up to normalization), which is the content
+    of `derivation_commutator_conjecture` in Relations.lean.
+    This theorem only states that the derivation distributes over addition. -/
+theorem weightRaiseDerivation_additive (n : ℕ) (f g : FormalSum) :
+    iharaDerivation n (f ++ g) = iharaDerivation n f ++ iharaDerivation n g := by
   exact iharaDerivation_append n f g
 
 /-! ## Connection to Motivic Structure -/
@@ -395,11 +477,12 @@ def zagierDimension : ℕ → ℕ
   | 2 => 1
   | n + 3 => zagierDimension (n + 1) + zagierDimension n
 
-/-- The generating function for Zagier's dimension formula.
-
-    1 / (1 - x² - x³) = Σ d_n x^n -/
-def zagier_generating_function : Prop :=
-  ∀ n : ℕ, zagierDimension (n + 3) = zagierDimension (n + 1) + zagierDimension n
+/-- Zagier's dimension formula satisfies the recurrence d_{n+3} = d_{n+1} + d_n,
+    which corresponds to the generating function 1/(1 - x² - x³).
+    This is immediate from the definition. -/
+theorem zagier_dimension_recurrence (n : ℕ) :
+    zagierDimension (n + 3) = zagierDimension (n + 1) + zagierDimension n := by
+  rfl
 
 /-- Goncharov's conjecture: the double shuffle relations
     give ALL relations between MZVs. -/

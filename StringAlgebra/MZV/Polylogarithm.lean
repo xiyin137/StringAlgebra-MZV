@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: ModularPhysics Contributors
 -/
 import StringAlgebra.MZV.Basic
+import Mathlib.Data.Rat.Lemmas
 
 /-!
 # Polylogarithms and Multiple Polylogarithms
@@ -108,26 +109,36 @@ def li2 : Polylog where
   convergenceRegion := .onUnitCircle true
   converges := Or.inr ⟨rfl, le_refl 2⟩
 
-/-- Li_n(1) = ζ(n) for n ≥ 2 -/
-theorem polylog_one_eq_zeta (n : ℕ) (hn : n ≥ 2) :
+/-- There is an admissible weight-`n` composition for every `n ≥ 2`.
+
+    In the intended analytic picture this is the index appearing in `Li_n(1) = ζ(n)`,
+    but this lemma only constructs the corresponding composition. -/
+theorem polylog_one_has_admissible_index (n : ℕ) (hn : n ≥ 2) :
     ∃ s : Composition, s.weight = n ∧ s.isAdmissible := by
   refine ⟨[⟨n, by omega⟩], ?_, ?_⟩
   · simp [Composition.weight]
   · simp [Composition.isAdmissible, hn]
 
-/-- The 5-term relation for Li_2 (Abel's identity):
-    Li_2(x) + Li_2(y) + Li_2((1-x)/(1-xy)) + Li_2(1-xy) + Li_2((1-y)/(1-xy))
-    = ζ(2) + log(...)  -/
-def dilog_five_term : Prop :=
-  ∀ x y : ℤ, x + y + (1 - x) + (1 - y) + (x * y) = 2 + x * y
+/-- Conjectural 5-term relation for Li_2 (Abel's identity).
 
-/-- Inversion formula: Li_n(-1/z) = (-1)^{n-1} Li_n(-z) + ... -/
-def polylog_inversion (n : ℕ) : Prop :=
-  n + n = 2 * n
+    The relation is expressed against an abstract evaluator `Li2 : ℚ → ℚ`,
+    so proof obligations are explicit and no tautological placeholder is used. -/
+def dilog_five_term_conjecture (Li2 : ℚ → ℚ) : Prop :=
+  ∀ x y : ℚ, x * y ≠ 1 →
+    Li2 x + Li2 y + Li2 ((1 - x) / (1 - x * y)) + Li2 (1 - x * y) +
+      Li2 ((1 - y) / (1 - x * y)) = 0
 
-/-- Duplication formula: Li_n(z) + Li_n(-z) = 2^{1-n} Li_n(z²) -/
-def polylog_duplication (n : ℕ) : Prop :=
-  2 ^ (n + 1) = 2 * 2 ^ n
+/-- Conjectural inversion formula:
+    `Li_n(-1/z) = (-1)^(n-1) Li_n(-z)` up to lower-weight correction terms. -/
+def polylog_inversion_conjecture (Li : ℕ → ℚ → ℚ) : Prop :=
+  ∀ n : ℕ, ∀ z : ℚ, z ≠ 0 →
+    Li n (-(1 / z)) = ((-1 : ℚ) ^ (n - 1)) * Li n (-z)
+
+/-- Conjectural duplication formula:
+    `Li_n(z) + Li_n(-z) = 2^(1-n) Li_n(z^2)`. -/
+def polylog_duplication_conjecture (Li : ℕ → ℚ → ℚ) : Prop :=
+  ∀ n : ℕ, ∀ z : ℚ,
+    Li n z + Li n (-z) = ((1 : ℚ) / ((2 : ℚ) ^ (n - 1))) * Li n (z * z)
 
 end Polylog
 
@@ -168,19 +179,22 @@ def depth (L : MultiplePolylog) : ℕ := L.indices.depth
 def at_unit_arguments (s : Composition) (_hs : s.isAdmissible) : Prop :=
   ∃ L : MultiplePolylog, L.indices = s ∧ L.arguments = List.replicate s.length (1 : ℤ)
 
-/-- The shuffle relation for multiple polylogarithms:
-    Li_s(z) · Li_t(w) = Σ_{u ∈ s ш t} Li_u(z ш w)
+/-- Conjectural shuffle product for multiple polylogarithms.
 
-    where the shuffle on arguments is coordinate-wise. -/
-def shuffle_product : Prop :=
-  ∀ L₁ L₂ : MultiplePolylog, L₁.weight + L₂.weight = L₂.weight + L₁.weight
+    `shuffleExpand` models the formal shuffle expansion on indices/arguments,
+    and `eval` is the (analytic) value map to be formalized later. -/
+def shuffle_product_conjecture
+    (eval : MultiplePolylog → ℚ)
+    (shuffleExpand : MultiplePolylog → MultiplePolylog → List MultiplePolylog) : Prop :=
+  ∀ L₁ L₂ : MultiplePolylog,
+    eval L₁ * eval L₂ = List.sum ((shuffleExpand L₁ L₂).map eval)
 
-/-- The stuffle relation (series product):
-    Li_s(z) · Li_t(z) = Σ_{u ∈ s * t} Li_u(z)
-
-    when all arguments are the same. -/
-def stuffle_product : Prop :=
-  ∀ L₁ L₂ : MultiplePolylog, L₁.depth + L₂.depth = L₂.depth + L₁.depth
+/-- Conjectural stuffle product for multiple polylogarithms. -/
+def stuffle_product_conjecture
+    (eval : MultiplePolylog → ℚ)
+    (stuffleExpand : MultiplePolylog → MultiplePolylog → List MultiplePolylog) : Prop :=
+  ∀ L₁ L₂ : MultiplePolylog,
+    eval L₁ * eval L₂ = List.sum ((stuffleExpand L₁ L₂).map eval)
 
 end MultiplePolylog
 
@@ -221,29 +235,39 @@ def trailingZeros (H : HarmonicPolylog) : ℕ :=
 def convergentAtOne (H : HarmonicPolylog) : Prop :=
   H.word.head? ≠ some HPLLetter.one
 
-/-- Shuffle product for HPLs:
-    H(w₁; x) · H(w₂; x) = Σ_{w ∈ w₁ ш w₂} H(w; x) -/
-def hpl_shuffle_product : Prop :=
-  ∀ H₁ H₂ : HarmonicPolylog, H₁.weight + H₂.weight = H₂.weight + H₁.weight
+/-- Conjectural shuffle product for HPLs. -/
+def hpl_shuffle_product_conjecture
+    (eval : HarmonicPolylog → ℚ)
+    (shuffleExpand : HarmonicPolylog → HarmonicPolylog → List HarmonicPolylog) : Prop :=
+  ∀ H₁ H₂ : HarmonicPolylog,
+    eval H₁ * eval H₂ = List.sum ((shuffleExpand H₁ H₂).map eval)
 
-/-- At x = 1, HPLs reduce to (colored) MZVs -/
-def hpl_at_one : Prop :=
-  ∀ H : HarmonicPolylog, convergentAtOne H → trailingZeros H ≤ weight H
+/-- Conjectural reduction of convergent HPLs at `x = 1` to colored MZVs. -/
+def hpl_at_one_conjecture
+    (toWeightAtOne : HarmonicPolylog → ℕ) : Prop :=
+  ∀ H : HarmonicPolylog,
+    convergentAtOne H → toWeightAtOne H = H.weight
 
-/-- Transformation under x → 1-x -/
-def hpl_complement : Prop :=
-  ∀ H : HarmonicPolylog, (H.word.map fun
-    | HPLLetter.zero => HPLLetter.one
-    | HPLLetter.one => HPLLetter.zero
-    | HPLLetter.minusOne => HPLLetter.minusOne).length = H.weight
+/-- Conjectural transformation law under `x ↦ 1 - x`. -/
+def hpl_complement_conjecture
+    (eval : HarmonicPolylog → ℚ)
+    (complement : HarmonicPolylog → HarmonicPolylog)
+    (correction : HarmonicPolylog → ℚ) : Prop :=
+  ∀ H : HarmonicPolylog, eval (complement H) = eval H + correction H
 
-/-- Transformation under x → -x -/
-def hpl_negate : Prop :=
-  ∀ H : HarmonicPolylog, H.argument + (-H.argument) = 0
+/-- Conjectural transformation law under `x ↦ -x`. -/
+def hpl_negate_conjecture
+    (eval : HarmonicPolylog → ℚ)
+    (negate : HarmonicPolylog → HarmonicPolylog)
+    (sign : HarmonicPolylog → ℚ) : Prop :=
+  ∀ H : HarmonicPolylog, eval (negate H) = sign H * eval H
 
-/-- Transformation under x → 1/x -/
-def hpl_invert : Prop :=
-  ∀ H : HarmonicPolylog, H.argument ≠ 0 → H.argument * H.argument ≥ 1
+/-- Conjectural transformation law under `x ↦ 1/x`. -/
+def hpl_invert_conjecture
+    (eval : HarmonicPolylog → ℚ)
+    (invert : HarmonicPolylog → HarmonicPolylog)
+    (correction : HarmonicPolylog → ℚ) : Prop :=
+  ∀ H : HarmonicPolylog, H.argument ≠ 0 → eval (invert H) = eval H + correction H
 
 end HarmonicPolylog
 
@@ -266,9 +290,11 @@ structure NielsenPolylog where
 
 namespace NielsenPolylog
 
-/-- S_{n,1}(z) = Li_{n+1}(z) -/
-def nielsen_n1 (n : ℕ) : Prop :=
-  ∀ S : NielsenPolylog, S.n = n → S.p = 1 → S.n + S.p = n + 1
+/-- Conjectural identity `S_{n,1}(z) = Li_{n+1}(z)`. -/
+def nielsen_n1_conjecture
+    (Sval : ℕ → ℕ → ℚ → ℚ)
+    (Li : ℕ → ℚ → ℚ) : Prop :=
+  ∀ n : ℕ, ∀ z : ℚ, Sval n 1 z = Li (n + 1) z
 
 /-- Weight of Nielsen polylog is n + p -/
 def weight (S : NielsenPolylog) : ℕ := S.n + S.p
@@ -312,57 +338,84 @@ def weight (ζ : ColoredMZV) : ℕ := ζ.indices.weight
 /-- Depth = number of indices -/
 def depth (ζ : ColoredMZV) : ℕ := ζ.indices.depth
 
-/-- At trivial colors (all 1), reduce to standard MZV -/
-def at_trivial_colors : Prop :=
+/-- Conjectural reduction at trivial colors (all colors `= 1`) to standard MZVs. -/
+def at_trivial_colors_conjecture
+    (evalColored : ColoredMZV → ℚ)
+    (evalMZV : Composition → ℚ) : Prop :=
   ∀ ζ : ColoredMZV,
-    (∀ c ∈ ζ.colors, c.order = ⟨1, by omega⟩) → ζ.indices.isAdmissible
+    (∀ c ∈ ζ.colors, c.order = ⟨1, by omega⟩) →
+      evalColored ζ = evalMZV ζ.indices
 
 /-- Euler sums: colors from {1, -1} -/
 def isEulerSum (ζ : ColoredMZV) : Prop :=
   ∀ c ∈ ζ.colors, c.order = ⟨2, by omega⟩
 
-/-- Distribution relation for colored MZVs -/
-def distribution_relation : Prop :=
-  ∀ ζ : ColoredMZV, ∃ n : ℕ, n = ζ.weight + ζ.depth
+/-- Conjectural distribution relation for colored MZVs. -/
+def distribution_relation_conjecture
+    (evalColored : ColoredMZV → ℚ)
+    (distribute : ℕ → ColoredMZV → List ColoredMZV) : Prop :=
+  ∀ N : ℕ, ∀ ζ : ColoredMZV,
+    evalColored ζ = List.sum ((distribute N ζ).map evalColored)
 
 end ColoredMZV
 
 /-! ## Functional Equations -/
 
-/-- The monodromy of polylogarithms encodes functional equations.
+/-- Conjectural monodromy constraint for polylogarithms around `0,1,∞`. -/
+def polylog_monodromy_conjecture
+    (monodromy0 monodromy1 monodromyInf : Polylog → Polylog) : Prop :=
+  ∀ P : Polylog, monodromyInf (monodromy1 (monodromy0 P)) = P
 
-    As we analytically continue Li_n(z) around z = 0, 1, ∞,
-    we pick up logarithmic terms. -/
-def polylog_monodromy : Prop :=
-  ∀ P : Polylog, P.order ≥ 1
-
-/-- The functional equation for Li_2 generalizes to a clean
-    formula involving the Bloch-Wigner dilogarithm:
-    D(z) = Im(Li_2(z)) + arg(1-z)·log|z|
-
-    This satisfies D(z) + D(1-z) + D((z-1)/z) + D(1/(1-z)) + D(z/(z-1)) = 0 -/
-def bloch_wigner_five_term : Prop :=
-  ∀ z : ℤ, z + (1 - z) + (z - 1) + (1 - z) + z = 1 + z
+/-- Conjectural Bloch-Wigner five-term relation. -/
+def bloch_wigner_five_term_conjecture (D : ℚ → ℚ) : Prop :=
+  ∀ z : ℚ, z ≠ 0 → z ≠ 1 →
+    D z + D (1 - z) + D ((z - 1) / z) + D (1 / (1 - z)) + D (z / (z - 1)) = 0
 
 /-! ## Connection to K-theory -/
 
-/-- The Bloch group B(F) for a field F is generated by [z] for z ∈ F \ {0,1}
-    modulo the 5-term relation.
+/-- Formal generator [z] of the pre-Bloch group for z ∈ ℚ \ {0,1}.
 
-    The dilogarithm gives a map D : B(ℂ) → ℝ. -/
-structure BlochGroup where
-  generators : Set ℤ
-  fiveTermClosed :
-    ∀ z : ℤ, z ∈ generators → (1 - z) ∈ generators
+    The Bloch group B(F) is the kernel of δ : ℤ[F \ {0,1}] → Λ²(F×)
+    where δ([z]) = z ∧ (1-z), quotiented by the five-term relation.
 
-/-- A basic Bloch-group model containing all rational generators. -/
-def blochGroup : BlochGroup where
-  generators := Set.univ
-  fiveTermClosed := by intro _z _hz; simp
+    Proper formalization would require:
+    - The free abelian group on F \ {0,1}
+    - The boundary map δ
+    - The five-term relation as a quotient
+    - Connection to K₃(F) via Bloch-Suslin
 
-/-- Borel's theorem: K₃(ℤ) ⊗ ℚ ≅ ℚ, generated by ζ(3)
-    More generally, K_{2n-1}(ℤ) ⊗ ℚ ≅ ℚ for n ≥ 2. -/
-def borel_theorem : Prop :=
-  ∀ n : ℕ, n ≥ 2 → ∃ q : ℤ, q ≠ 0
+    This structure records formal generators with the exclusion constraint. -/
+structure PreBlochGenerator where
+  /-- The element z -/
+  value : ℚ
+  /-- z ≠ 0 -/
+  ne_zero : value ≠ 0
+  /-- z ≠ 1 -/
+  ne_one : value ≠ 1
+
+/-- Formal element of the pre-Bloch group: a ℤ-linear combination of generators. -/
+abbrev PreBlochGroup := List (ℤ × PreBlochGenerator)
+
+/-- The five-term relation in the pre-Bloch group.
+
+    For x, y with x ≠ y and appropriate non-degeneracy:
+    [x] - [y] + [y/x] - [(1-x⁻¹)/(1-y⁻¹)] + [(1-x)/(1-y)] = 0
+
+    This records both the existence of the auxiliary generators
+    (with the correct values) AND that the signed formal sum
+    evaluates to zero under any additive evaluation map `ev`. -/
+def BlochFiveTermRelation (x y : PreBlochGenerator) (_hxy : x.value ≠ y.value)
+    (ev : PreBlochGenerator → ℚ) : Prop :=
+  ∃ g₃ g₄ g₅ : PreBlochGenerator,
+    g₃.value = y.value / x.value ∧
+    g₄.value = (1 - x.value⁻¹) / (1 - y.value⁻¹) ∧
+    g₅.value = (1 - x.value) / (1 - y.value) ∧
+    -- The actual five-term relation: [x] - [y] + [y/x] - [g₄] + [g₅] = 0
+    ev x - ev y + ev g₃ - ev g₄ + ev g₅ = 0
+
+/-- Conjectural rank form of Borel's theorem:
+    `rank K_{2n-1}(ℤ) = 1` for `n ≥ 2`. -/
+def borel_theorem_conjecture (rankK : ℕ → ℕ) : Prop :=
+  ∀ n : ℕ, n ≥ 2 → rankK (2 * n - 1) = 1
 
 end StringAlgebra.MZV

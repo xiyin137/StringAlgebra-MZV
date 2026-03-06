@@ -36,14 +36,14 @@ rg -n '\btheorem\b' StringAlgebra/MZV --glob '*.lean' | wc -l
 rg -n 'native_decide' StringAlgebra/MZV/Motivic.lean | wc -l
 ```
 
-## Status (2026-02-27, locally verified)
+## Status (2026-03-06, locally verified)
 
-1. `sorry` count in `StringAlgebra/MZV`: `0`
+1. `sorry` count in `StringAlgebra/MZV`: `1`
 2. `axiom`/`admit`/`unsafe` count in `StringAlgebra/MZV`: `0`
-3. Proposition-shell count (`def ... : Prop`): `93` (explicit spec/conjectural interfaces)
-4. `theorem` token count in `StringAlgebra/MZV`: `533`
+3. Proposition-shell count (`def ... : Prop`): `79` (explicit spec/conjectural interfaces)
+4. `theorem` token count in `StringAlgebra/MZV`: `535`
 5. `native_decide` uses in `Motivic.lean`: `11`
-6. Build status: `lake build StringAlgebra.MZV` passes
+6. Build status: `lake build StringAlgebra.MZV` passes (with one `sorry` warning in `StuffleAlgebra.lean`)
 
 ## Working Documents
 

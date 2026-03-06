@@ -87,11 +87,11 @@ def weight (w : FormWord) : ℕ := w.length
 def countOmega1 (w : FormWord) : ℕ :=
   w.countP (· == MZVForm.omega1)
 
-/-- A word is convergent if it starts with omega1 and ends with omega0.
+/-- A word is convergent if it starts with omega0 and ends with omega1.
 
-    This ensures the iterated integral ∫₀¹ converges. -/
+    This matches the `ω₀^(sᵢ-1) ω₁` convention used for `compositionToFormWord`. -/
 def isConvergent (w : FormWord) : Prop :=
-  w.head? = some MZVForm.omega1 ∧ w.getLast? = some MZVForm.omega0
+  w.head? = some MZVForm.omega0 ∧ w.getLast? = some MZVForm.omega1
 
 /-- Swap omega0 ↔ omega1 (for complement relation) -/
 def swap : MZVForm → MZVForm
@@ -151,22 +151,20 @@ theorem compositionToFormWord_depth (s : Composition) :
 
     Reads blocks of ω₀*ω₁ and counts the ω₀s + 1 to get each part. -/
 def formWordToComposition (w : FormWord) : Option Composition :=
-  if w.getLast? ≠ some MZVForm.omega1 then
-    none
-  else
-    -- Group by ω₁ separators and count ω₀s in each group
-    some (go w [])
+  match w with
+  | [] => some []
+  | _ =>
+      if w.getLast? ≠ some MZVForm.omega1 then
+        none
+      else
+        some (go w 1 [])
 where
-  go : FormWord → List ℕ+ → Composition
-  | [], acc => acc.reverse
-  | MZVForm.omega0 :: rest, acc =>
-      match acc with
-      | [] => go rest [⟨1, by omega⟩]  -- Start new group
-      | h :: t => go rest (⟨h.val + 1, by omega⟩ :: t)  -- Increment current
-  | MZVForm.omega1 :: rest, acc =>
-      match acc with
-      | [] => go rest [⟨1, by omega⟩]
-      | _ => go rest (⟨1, by omega⟩ :: acc)  -- Close current, start new
+  go : FormWord → ℕ+ → List ℕ+ → Composition
+  | [], _, acc => acc.reverse
+  | MZVForm.omega0 :: rest, current, acc =>
+      go rest (current + 1) acc
+  | MZVForm.omega1 :: rest, current, acc =>
+      go rest 1 (current :: acc)
 
 /-! ## Iterated Integral Shuffle -/
 
@@ -186,19 +184,19 @@ theorem chen_product_formula (w₁ w₂ : FormWord) :
 
 /-- A word is divergent if it doesn't satisfy convergence conditions -/
 def isDivergent (w : FormWord) : Bool :=
-  ¬(w.head? = some MZVForm.omega1 ∧ w.getLast? = some MZVForm.omega0)
+  decide (¬(w.head? = some MZVForm.omega0 ∧ w.getLast? = some MZVForm.omega1))
 
 /-- Shuffle regularization for divergent integrals.
 
-    For words starting with ω₀ or ending with ω₁, we use the shuffle
+    For words starting with ω₁ or ending with ω₀, we use the shuffle
     relation to express the divergent integral in terms of products
     of convergent integrals plus a regularized remainder.
 
     Example: ∫ω₀ is divergent, but we set it to 0 by convention. -/
 def shuffleRegularize (w : FormWord) : List (FormWord × ℤ) :=
-  if w.head? = some MZVForm.omega0 then
+  if w.head? = some MZVForm.omega1 then
     []
-  else if w.getLast? = some MZVForm.omega1 then
+  else if w.getLast? = some MZVForm.omega0 then
     []
   else
     [(w, 1)]
@@ -234,8 +232,12 @@ theorem duality_involutive (w : FormWord) : duality (duality w) = w := by
   funext x
   exact swap_involutive x
 
-/-- The duality theorem: ∫τ(w) = ∫w for convergent words -/
-theorem duality_theorem (w : FormWord) (_hw : w.isConvergent) :
+/-- Duality is an involution on convergent words (specialization of `duality_involutive`).
+
+    The actual duality theorem for MZVs states ∫τ(w) = ∫w for convergent words,
+    i.e., ζ(s₁,...,sₖ) = ζ(dual(s₁,...,sₖ)). That requires a period map and
+    is not formalized here — this lemma only records the combinatorial involutivity. -/
+theorem duality_involutive_convergent (w : FormWord) (_hw : w.isConvergent) :
     duality (duality w) = w := duality_involutive w
 
 /-! ## The De Rham Fundamental Groupoid -/
@@ -256,32 +258,46 @@ def concat (g₁ g₂ : GroupoidElement) : GroupoidElement :=
   g₁.flatMap fun (c₁, w₁) =>
     g₂.map fun (c₂, w₂) => (c₁ * c₂, w₁ ++ w₂)
 
-/-- The group-like elements satisfy Δ(g) = g ⊗ g -/
+/-- An element is group-like if it satisfies Δ(g) = g ⊗ g under the
+    deconcatenation coproduct.
+
+    In the completed tensor algebra, this means g is an exponential
+    of Lie elements. The empty-word coefficient must be 1 (normalization). -/
 def isGroupLike (g : GroupoidElement) : Prop :=
-  ∃ c : ℤ, (c, []) ∈ g ∧ c = 1
+  -- Normalization: coefficient of empty word is 1
+  (∃ c : ℤ, (c, []) ∈ g ∧ c = 1) ∧
+  -- Group-like condition: for every factorization w = u ++ v,
+  -- the coefficient of w equals the sum over all such factorizations
+  -- of the product of coefficients of u and v.
+  ∀ w : FormWord, w ≠ [] →
+    let coeffOf (g : GroupoidElement) (u : FormWord) : ℤ :=
+      ((g.filter (·.2 = u)).map (·.1)).sum
+    coeffOf g w = (List.range (w.length + 1)).foldl
+      (fun acc i => acc + coeffOf g (w.take i) * coeffOf g (w.drop i)) 0
 
 end GroupoidElement
 
-/-! ## Connection to Motivic Structures -/
+/-! ## Connection to Motivic Structures
 
-/-- The period map sends a form word to its value.
+The period map, de Rham realization, and Betti realization are part of the
+motivic framework for iterated integrals. Proper formalization requires:
+- The period map per : FormWord → ℂ (via actual integration)
+- The de Rham realization as the quotient of the tensor algebra by shuffle relations
+- The Betti realization via topology of paths on P¹ \ {0,1,∞}
+- The comparison isomorphism (which gives rise to periods = MZVs)
 
-    per : FormWord → ℂ (or ℝ for real MZVs)
-    per(ω₀^{s₁-1}ω₁...ω₀^{sₖ-1}ω₁) = ζ(s₁,...,sₖ) -/
-def formWordPeriodMap (w : FormWord) : ℕ :=
+These are not yet formalized here. The structures below are placeholders
+that record the *type-level shape* but do not carry mathematical content. -/
+
+/-- Placeholder: the period map should send convergent form words to their
+    iterated integral values in ℂ. Currently not formalized.
+
+    The actual period map satisfies:
+    per(ω₀^{s₁-1}ω₁...ω₀^{sₖ-1}ω₁) = ζ(s₁,...,sₖ)
+
+    Proper formalization requires integration theory for iterated integrals. -/
+def formWordDepth (w : FormWord) : ℕ :=
   w.countOmega1
-
-/-- The de Rham realization is the vector space spanned by form words
-    modulo shuffle relations. -/
-def deRhamRealization : Type := FormWord  -- Modulo shuffle
-
-/-- The Betti realization involves topology of paths. -/
-def bettiRealization : Type := List FormWord
-
-/-- The comparison isomorphism between de Rham and Betti gives periods. -/
-theorem deRham_Betti_comparison :
-    Nonempty (deRhamRealization → bettiRealization) := by
-  refine ⟨fun w => [w]⟩
 
 /-! ## Bar Construction -/
 

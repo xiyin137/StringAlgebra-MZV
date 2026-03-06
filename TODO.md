@@ -1,20 +1,136 @@
-# MZV Soundness TODO (Dependency-Driven)
+# MZV Formalization Status — Honest Assessment
 
-Date: 2026-02-26
+Date: 2026-03-06
 
-This file tracks semantic and proof debt for `StringAlgebra/MZV` under `agent.md` rigor rules.
-
-## Current Verified State
+## Build Status
 
 1. `lake build StringAlgebra.MZV` passes.
-2. `StringAlgebra/MZV/*.lean` is `sorry`-free (proof-level `sorry` count: 0).
-3. No `axiom`/`admit`/`Classical.choose`/`Classical.epsilon` usage in MZV Lean files.
-4. Placeholder `True := trivial` stubs have been removed from the main MZV interfaces.
-5. `DoubleShuffle.lean` end-stage contracts were tightened: coaction/motivic compatibility are explicit map-parameterized properties, finite-generation is phrased via finite bases, and the implemented Ihara derivation now has explicit additive and basic structural lemmas.
-6. Redundant tautological endpoint shells were removed from `DoubleShuffle.lean` (direct `Iff.rfl` theorem wrappers of definitions).
-7. Additional unused tautological example equalities were removed from `Basic.lean`, `Relations.lean`, `Motivic.lean`, and `Polylogarithm.lean` to reduce non-semantic surface area.
-8. Additional unused tautological arithmetic/weight wrappers were removed from `Basic.lean`, `Relations.lean`, and `Motivic.lean` (`zeta21_weight`, `bk_values`, `zeta3_eq_f3`, `zeta5_eq_f5`, `weight8_relation`).
-9. Misleading relation-labeled theorem shells that only proved weight equalities were removed from `DoubleShuffle.lean`/`Motivic.lean` (`zeta21_eq_zeta3`, `weight4_relations`, `motivic_zeta21_eq_zeta3`), alongside the unused definitional wrapper `hoffmanCount_recurrence`.
+2. No `axiom`/`admit` usage.
+3. One theorem-level `sorry` remains: `stuffle_assoc` in `StringAlgebra/MZV/StuffleAlgebra.lean`.
+4. `native_decide` count in `Motivic.lean`: 11 (used for small matrix kernel checks).
+
+## Honesty Notes
+
+### What is actually proved
+
+The proved content is limited to **basic combinatorics on lists**:
+
+- **Basic.lean**: Weight/depth additivity, reversal, composition-to-word conversions.
+  `hoffman_composition_exists` proves that Hoffman compositions of each weight ≥ 2 exist
+  (a purely combinatorial fact, NOT Brown's theorem about MZV bases).
+- **ShuffleAlgebra.lean**: Correct recursive shuffle product, length preservation,
+  commutativity (as multisets), binomial coefficient count of shuffles, and
+  associativity as a theorem.
+- **StuffleAlgebra.lean**: Correct recursive stuffle product, weight preservation,
+  commutativity, and helper infrastructure toward associativity. The theorem
+  `stuffle_assoc` is stated, but its proof currently ends with one explicit `sorry`.
+- **IteratedIntegral.lean**: Duality involution correctly defined and proved involutive.
+  Weight/depth preservation for form words.
+- **DoubleShuffle.lean**: Formal sum algebra operations. Weight-raising derivation
+  distributes over formal sum addition (trivial). Zagier dimension recurrence
+  is immediate from the definition.
+- **Motivic.lean**: Low-weight matrix infrastructure (lines ~700-5300) correctly
+  computes specific small matrices and verifies trivial kernels via `native_decide`.
+  The depth-1 primitive coaction (Δ(m) = m⊗1 + 1⊗m) is trivially coassociative
+  and multiplicative by case analysis.
+
+### What is NOT proved (but may appear "proved")
+
+- **Coaction model**: The coaction in `Motivic.lean` is a **depth-1 primitive model**
+  (every element is primitive). This is NOT Brown's admissible-cut coaction.
+  The "coassociativity" and "multiplicativity" theorems are trivially true for
+  any primitive coaction in any Hopf algebra.
+
+- **Prop-as-Definition pattern**: Many mathematical statements are encoded as
+  `def ... : Prop` parameterized by abstract evaluation maps. These are
+  *specifications* (what it means for an evaluation map to satisfy the relation),
+  not proved theorems. Examples: `sum_formula_general`, `duality_relation`,
+  `mzv_shuffle_product`, `extendedDoubleShuffle`, all `*_conjecture` defs.
+
+- **MotivicMZV structure**: The `weight` and `depth` fields are free metadata
+  not structurally tied to the formal sum. `WellFormed` checks consistency
+  but is not enforced by the type system.
+
+### What was removed/fixed in this audit
+
+1. **Associator.lean** — Complete rewrite:
+   - Pentagon/hexagon equations were mathematically incorrect (were trivial
+     properties of word concatenation, not the actual coherence conditions).
+     Now stated correctly as specifications requiring multi-variable substitution.
+   - `GTElement` duality condition now correctly swaps A↔B (was trivially true before).
+   - `GRTElement` now requires antisymmetry under A↔B swap.
+   - `PureBraidWord` now correctly computes the induced permutation.
+   - `KontsevichIntegral` replaced `String` knot field with `ChordDiagram` formalism.
+   - Removed vacuous theorems (`kontsevich_unknot`, `kz_braid_representation`,
+     `associator_parallel_transport_conjecture`, `chern_simons_connection_conjecture`,
+     `kz_cft_origin_conjecture`, `lmo_universal_conjecture`).
+
+2. **Basic.lean**: `brown_hoffman_basis` renamed to `hoffman_composition_exists`
+   with honest docstring (it's combinatorics, not Brown's theorem).
+
+3. **IteratedIntegral.lean**: Removed vacuous `deRhamRealization`/`bettiRealization`
+   type aliases and the trivial `deRham_Betti_comparison` "theorem" (which just
+   wrapped a word in a singleton list). `formWordPeriodMap` renamed to `formWordDepth`.
+
+4. **Polylogarithm.lean**: `BlochGroup` (was `Set.univ` with trivial closure)
+   replaced with `PreBlochGenerator`/`PreBlochGroup`/`BlochFiveTermRelation`.
+
+5. **Motivic.lean**: Honest documentation added to `MotivicMZV`, coaction model,
+   `MotivicGaloisGroup`. `feynman_integral_connection` renamed to
+   `motivicPeriodMap_mem_toyPeriodAlgebra` with honest docstring (tautological).
+   `motivicGaloisGroup` renamed to `trivialGaloisAction`.
+
+6. **Relations.lean**: `odd_zeta_independence_conjecture` was stating injectivity
+   (ζ(n) ≠ ζ(m)), not algebraic independence. Replaced with honest interface
+   noting that proper formalization requires `MvPolynomial`.
+
+7. **DoubleShuffle.lean**: `ihara_lie_algebra` (claiming Lie structure but only
+   proving linearity) replaced with honest `weightRaiseDerivation_additive`.
+   `zagier_generating_function` (Prop def) converted to `zagier_dimension_recurrence`
+   (trivially proved theorem).
+
+### Second audit fixes
+
+8. **IteratedIntegral.lean**: `duality_theorem` renamed to `duality_involutive_convergent`
+   with honest docstring — it only proves combinatorial involutivity, not integral equality.
+
+9. **Motivic.lean**:
+   - `period_conjecture` was FALSE in the toy model (`motivicPeriodMap` sums coefficients,
+     so distinct elements map to the same value). Now parameterized by an abstract
+     period map `per : MotivicMZV → R`.
+   - `cosmic_galois_conjecture` was trivially provable (satisfied by `trivialGaloisAction`).
+     Now requires both per-equivariance and non-triviality of the action,
+     parameterized by an abstract period map.
+
+10. **Associator.lean**:
+    - `low_degree_expansion` was tautological (existentially quantified `zeta2`/`zeta3`
+      could be chosen as whatever the coefficients are). Now takes `zeta2`/`zeta3` as
+      parameters and additionally requires degree-1 coefficients to vanish.
+    - `coefficients_are_MZVs` was too weak (allowed different witness per word, didn't
+      express ℚ-linear combinations). Now requires finite ℚ-linear combinations with
+      a universal evaluation map and weight compatibility.
+    - `kontsevich_multiplicative_conjecture` was vacuous (∃ K₃ always satisfiable).
+      Now parameterized by abstract knot type with connected sum operation.
+
+### Third audit fixes
+
+11. **StuffleAlgebra.lean**: `double_shuffle_relation` was vacuous (existentially
+    quantified both evaluation maps — satisfied by zero maps). Now takes `ζw`
+    and `ζc` as parameters.
+
+12. **Polylogarithm.lean**: `BlochFiveTermRelation` was vacuous (only asserted
+    existence of generators with correct values, missing the actual "= 0"
+    relation). Now includes `ev x - ev y + ev g₃ - ev g₄ + ev g₅ = 0`.
+
+13. **Relations.lean**:
+    - `ohno_relation_conjecture` was vacuous (universally quantified over ALL
+      lists satisfying weight/depth constraints). Now correctly enumerates
+      specific compositions via `distributions`/`addHeights`/`ohnoTerms`.
+    - `odd_zeta_independence_conjecture` concluded with `→ True` (tautological).
+      Now properly expresses algebraic independence as: no non-trivial polynomial
+      with distinct monomials evaluates to zero.
+    - `sumFormulaTerms` had off-by-one: `List.range (n - 1)` gave k ∈ [2, n]
+      instead of k ∈ [2, n-1]. Fixed to `List.range (n - 2)`.
 
 ## MZV Dependency Graph
 
@@ -31,66 +147,51 @@ DoubleShuffle -> Motivic
 Motivic -> Associator
 ```
 
-## Theorem Flow Toward Motivic/Associator Pipeline
+## Critical Open Work
 
-```text
-Basic composition/word infrastructure
--> shuffle + stuffle products
--> double shuffle compatibility/regularization interface
--> motivic MZV/coaction interface
--> Drinfeld associator interface
-```
+### WP0 — Foundational Gaps (Highest Priority)
 
-## Audit Matrix
+1. **Prove shuffle/stuffle associativity** — currently only specifications.
+   These are standard results needing careful induction proofs.
+2. **Replace depth-1 primitive coaction** with Brown's admissible-cut coaction.
+   This is the single most impactful change for mathematical content.
+3. **Enforce MotivicMZV invariants** — either make weight/depth computed fields
+   or use a subtype with WellFormed.
 
-1. `Basic.lean`: low risk. Core composition/word invariants are explicit and proved.
-2. `ShuffleAlgebra.lean`: medium risk. Core shuffle combinatorics are present; full associativity closure remains as explicit proposition-level target.
-3. `StuffleAlgebra.lean`: medium risk. Quasi-shuffle combinatorics are present; full associativity closure remains tracked as proposition-level target.
-4. `DoubleShuffle.lean`: medium-high risk. Relation and regularization interfaces are explicit; full derivation pipeline remains pending.
-5. `Relations.lean`: medium-high risk. Classical relation families are encoded; major conjectural/high-weight closures remain proposition-level contracts.
-6. `IteratedIntegral.lean`: medium risk. Differential-form and shuffle interfaces are explicit; full analytic convergence bridge remains pending.
-7. `Polylogarithm.lean`: medium-high risk. Polylog/HPL interfaces are explicit; analytic continuation and deep functional equations remain pending.
-8. `Motivic.lean`: medium-high risk. Motivic/coaction structure is explicit; full Hopf-algebra and period-isomorphism closure remains pending.
-9. `Associator.lean`: high risk. Associator and GT interfaces are explicit; full pentagon/hexagon derivations from constructed coefficients remain pending.
-10. `DoubleShuffle.lean` keeps explicit finite-generation/motivic interfaces while avoiding tautological endpoint wrappers.
-
-## Open Work Packages
-
-### WP1 - Product Algebra Closure
+### WP1 — Product Algebra Closure
 
 Targets: `ShuffleAlgebra.lean`, `StuffleAlgebra.lean`, `DoubleShuffle.lean`
 
-1. Prove full associativity/distributivity closure for shuffle and stuffle structures.
-2. Connect regularization maps to these algebraic laws by explicit compatibility lemmas.
-3. Promote proposition-level relation shells to theorem-level consequences.
+1. Prove associativity for shuffle and stuffle.
+2. Connect regularization maps by explicit compatibility lemmas.
+3. Prove concrete double shuffle relations (e.g., ζ(2,1) = ζ(3)).
 
-### WP2 - Relations Internalization
+### WP2 — Relations Internalization
 
 Target: `Relations.lean`
 
-1. Derive low-weight sum/duality/Ohno consequences from implemented product infrastructure.
-2. Replace declaration-style proposition wrappers with theorem statements where infrastructure is sufficient.
-3. Maintain explicit separation between proved theorems and conjectural statements.
+1. Derive low-weight sum/duality/Ohno consequences from product infrastructure.
+2. Formalize `odd_zeta_independence_conjecture` properly using `MvPolynomial`.
 
-### WP3 - Motivic Hopf Closure
+### WP3 — Motivic Hopf Closure
 
 Targets: `Motivic.lean`, `Associator.lean`
 
-1. Strengthen coaction identities into explicit Hopf-compatibility lemmas.
-2. Connect motivic generators to associator coefficient interfaces by explicit maps.
-3. Tighten GT/associator bridge statements from interface-level contracts toward derived theorems.
+1. Implement Brown's admissible-cut coaction.
+2. Prove non-trivial coaction identities.
+3. Formalize pentagon/hexagon with multi-variable NC series infrastructure.
 
-### WP4 - Polylog/Iterated Integral Bridge
+### WP4 — Analytic Bridge
 
 Targets: `IteratedIntegral.lean`, `Polylogarithm.lean`
 
-1. Expand bridge lemmas from iterated-integral words to polylog/HPL encodings.
-2. Formalize more functional-equation steps (inversion, duplication, distribution) from explicit identities.
-3. Track analytic assumptions explicitly and minimize external contracts.
+1. Formalize period map (requires Mathlib integration theory).
+2. Connect iterated integral representation to MZV evaluation.
 
 ## Anti-Smuggling Gates
 
 1. No `axiom`.
-2. No `sorry`.
-3. No fabricated outputs disguised as canonical constructions.
-4. Conjectural content must remain clearly marked as conjectural/interface-level, not as proved theorem.
+2. No fabricated outputs disguised as canonical constructions.
+3. Conjectural content must be clearly marked as `*_conjecture` or as `def ... : Prop`.
+4. Documentation must honestly describe what is and is not proved.
+5. Definitions must be mathematically correct, not "simplified" placeholders.

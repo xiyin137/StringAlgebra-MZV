@@ -159,12 +159,218 @@ theorem shuffle_comm (u v : Word A) : (shuffle u v).Perm (shuffle v u) := by
       List.perm_append_comm
     simpa [shuffle] using hAppend.trans hSwap
 
-/-- Associativity specification for shuffle, up to permutation
-    after expanding both parenthesizations. -/
-def shuffle_assoc : Prop :=
-  ∀ u v w : Word A,
-    (List.flatMap (fun uv => shuffle uv w) (shuffle u v)).Perm
-      (List.flatMap (fun vw => shuffle u vw) (shuffle v w))
+/-- Helper: flatMap over mapped list (beta-reduced). -/
+theorem flatMap_map_eq {L : List α} {g : α → β} {f : β → List γ} :
+    (L.map g).flatMap f = L.flatMap (fun x => f (g x)) := by
+  induction L with
+  | nil => simp
+  | cons x xs ih => simp [List.flatMap_cons, ih]
+
+/-- Helper: map distributes into flatMap. -/
+theorem map_flatMap_eq (L : List α) (f : α → List β) (g : β → γ) :
+    (L.flatMap f).map g = L.flatMap (fun x => (f x).map g) := by
+  induction L with
+  | nil => simp
+  | cons x xs ih => simp [List.flatMap_cons, List.map_append, ih]
+
+/-- Helper: four-way append permutation (swap middle two). -/
+theorem perm_append_swap_middle (A B C D : List α) :
+    (A ++ B) ++ (C ++ D) ~ (A ++ C) ++ (B ++ D) := by
+  have := List.Perm.append_right D (List.perm_append_comm (l₁ := B) (l₂ := C))
+  simp only [List.append_assoc] at this ⊢
+  exact List.Perm.append_left A this
+
+/-- Shuffle is associative (as multisets).
+    `(u ш v) ш w ≅ u ш (v ш w)` -/
+theorem shuffle_assoc (u v w : Word A) :
+    ((shuffle u v).flatMap (shuffle · w)).Perm
+      ((shuffle v w).flatMap (shuffle u ·)) := by
+  match u, v, w with
+  | [], v, w =>
+    simp [shuffle_nil_left, List.flatMap_cons, List.flatMap_nil]
+  | u, [], w =>
+    simp [shuffle_nil_right, shuffle_nil_left, List.flatMap_cons, List.flatMap_nil]
+  | u, v, [] =>
+    simp [shuffle_nil_right]
+  | a :: u', b :: v', c :: w' =>
+    have ih1 := shuffle_assoc u' (b :: v') (c :: w')
+    have ih2 := shuffle_assoc (a :: u') v' (c :: w')
+    have ih3 := shuffle_assoc (a :: u') (b :: v') w'
+    simp only [shuffle]
+    rw [List.flatMap_append, List.flatMap_append]
+    simp only [flatMap_map_eq]
+    have key_lhs (L : List (Word A)) :
+        (L.flatMap (fun s => shuffle (a :: s) (c :: w'))).Perm
+          (((L.flatMap (shuffle · (c :: w'))).map (a :: ·)) ++
+            ((L.flatMap (fun s => shuffle (a :: s) w')).map (c :: ·))) := by
+      have h := (List.flatMap_append_perm L
+        (fun s => (shuffle s (c :: w')).map (a :: ·))
+        (fun s => (shuffle (a :: s) w').map (c :: ·))).symm
+      calc
+        L.flatMap (fun s => shuffle (a :: s) (c :: w'))
+            = L.flatMap (fun s =>
+                (shuffle s (c :: w')).map (a :: ·) ++ (shuffle (a :: s) w').map (c :: ·)) := by
+                  simp [shuffle]
+        _ ~ (L.flatMap (fun s => (shuffle s (c :: w')).map (a :: ·))) ++
+              (L.flatMap (fun s => (shuffle (a :: s) w').map (c :: ·))) := h
+        _ = (((L.flatMap (shuffle · (c :: w'))).map (a :: ·)) ++
+              ((L.flatMap (fun s => shuffle (a :: s) w')).map (c :: ·))) := by
+              rw [← map_flatMap_eq, ← map_flatMap_eq]
+    have key_lhs_b (L : List (Word A)) :
+        (L.flatMap (fun s => shuffle (b :: s) (c :: w'))).Perm
+          (((L.flatMap (shuffle · (c :: w'))).map (b :: ·)) ++
+            ((L.flatMap (fun s => shuffle (b :: s) w')).map (c :: ·))) := by
+      have h := (List.flatMap_append_perm L
+        (fun s => (shuffle s (c :: w')).map (b :: ·))
+        (fun s => (shuffle (b :: s) w').map (c :: ·))).symm
+      calc
+        L.flatMap (fun s => shuffle (b :: s) (c :: w'))
+            = L.flatMap (fun s =>
+                (shuffle s (c :: w')).map (b :: ·) ++ (shuffle (b :: s) w').map (c :: ·)) := by
+                  simp [shuffle]
+        _ ~ (L.flatMap (fun s => (shuffle s (c :: w')).map (b :: ·))) ++
+              (L.flatMap (fun s => (shuffle (b :: s) w').map (c :: ·))) := h
+        _ = (((L.flatMap (shuffle · (c :: w'))).map (b :: ·)) ++
+              ((L.flatMap (fun s => shuffle (b :: s) w')).map (c :: ·))) := by
+              rw [← map_flatMap_eq, ← map_flatMap_eq]
+    have key_rhs_b (L : List (Word A)) :
+        (L.flatMap (fun s => shuffle (a :: u') (b :: s))).Perm
+          (((L.flatMap (fun s => shuffle u' (b :: s))).map (a :: ·)) ++
+            ((L.flatMap (shuffle (a :: u') ·)).map (b :: ·))) := by
+      have h := (List.flatMap_append_perm L
+        (fun s => (shuffle u' (b :: s)).map (a :: ·))
+        (fun s => (shuffle (a :: u') s).map (b :: ·))).symm
+      calc
+        L.flatMap (fun s => shuffle (a :: u') (b :: s))
+            = L.flatMap (fun s =>
+                (shuffle u' (b :: s)).map (a :: ·) ++ (shuffle (a :: u') s).map (b :: ·)) := by
+                  simp [shuffle]
+        _ ~ (L.flatMap (fun s => (shuffle u' (b :: s)).map (a :: ·))) ++
+              (L.flatMap (fun s => (shuffle (a :: u') s).map (b :: ·))) := h
+        _ = (((L.flatMap (fun s => shuffle u' (b :: s))).map (a :: ·)) ++
+              ((L.flatMap (shuffle (a :: u') ·)).map (b :: ·))) := by
+              rw [← map_flatMap_eq, ← map_flatMap_eq]
+    have key_rhs_c (L : List (Word A)) :
+        (L.flatMap (fun s => shuffle (a :: u') (c :: s))).Perm
+          (((L.flatMap (fun s => shuffle u' (c :: s))).map (a :: ·)) ++
+            ((L.flatMap (shuffle (a :: u') ·)).map (c :: ·))) := by
+      have h := (List.flatMap_append_perm L
+        (fun s => (shuffle u' (c :: s)).map (a :: ·))
+        (fun s => (shuffle (a :: u') s).map (c :: ·))).symm
+      calc
+        L.flatMap (fun s => shuffle (a :: u') (c :: s))
+            = L.flatMap (fun s =>
+                (shuffle u' (c :: s)).map (a :: ·) ++ (shuffle (a :: u') s).map (c :: ·)) := by
+                  simp [shuffle]
+        _ ~ (L.flatMap (fun s => (shuffle u' (c :: s)).map (a :: ·))) ++
+              (L.flatMap (fun s => (shuffle (a :: u') s).map (c :: ·))) := h
+        _ = (((L.flatMap (fun s => shuffle u' (c :: s))).map (a :: ·)) ++
+              ((L.flatMap (shuffle (a :: u') ·)).map (c :: ·))) := by
+              rw [← map_flatMap_eq, ← map_flatMap_eq]
+    have lhs_split := List.Perm.append
+      (key_lhs (shuffle u' (b :: v')))
+      (key_lhs_b (shuffle (a :: u') v'))
+    have rhs_split := List.Perm.append
+      (key_rhs_b (shuffle v' (c :: w')))
+      (key_rhs_c (shuffle (b :: v') w'))
+    have lhs_regroup := perm_append_swap_middle
+      ((shuffle u' (b :: v')).flatMap (shuffle · (c :: w')) |>.map (a :: ·))
+      ((shuffle u' (b :: v')).flatMap (fun s => shuffle (a :: s) w') |>.map (c :: ·))
+      ((shuffle (a :: u') v').flatMap (shuffle · (c :: w')) |>.map (b :: ·))
+      ((shuffle (a :: u') v').flatMap (fun s => shuffle (b :: s) w') |>.map (c :: ·))
+    have rhs_regroup := perm_append_swap_middle
+      ((shuffle v' (c :: w')).flatMap (fun s => shuffle u' (b :: s)) |>.map (a :: ·))
+      ((shuffle v' (c :: w')).flatMap (shuffle (a :: u') ·) |>.map (b :: ·))
+      ((shuffle (b :: v') w').flatMap (fun s => shuffle u' (c :: s)) |>.map (a :: ·))
+      ((shuffle (b :: v') w').flatMap (shuffle (a :: u') ·) |>.map (c :: ·))
+    have c_combine :
+        ((shuffle u' (b :: v')).flatMap (fun s => shuffle (a :: s) w') ++
+         (shuffle (a :: u') v').flatMap (fun s => shuffle (b :: s) w')).map (c :: ·) =
+        ((shuffle (a :: u') (b :: v')).flatMap (shuffle · w')).map (c :: ·) := by
+      rw [show shuffle (a :: u') (b :: v') =
+          (shuffle u' (b :: v')).map (a :: ·) ++ (shuffle (a :: u') v').map (b :: ·) by
+            simp [shuffle]]
+      rw [List.flatMap_append, flatMap_map_eq, flatMap_map_eq, List.map_append]
+    have a_combine :
+        ((shuffle v' (c :: w')).flatMap (fun s => shuffle u' (b :: s)) ++
+         (shuffle (b :: v') w').flatMap (fun s => shuffle u' (c :: s))).map (a :: ·) =
+        ((shuffle (b :: v') (c :: w')).flatMap (shuffle u' ·)).map (a :: ·) := by
+      rw [show shuffle (b :: v') (c :: w') =
+          (shuffle v' (c :: w')).map (b :: ·) ++ (shuffle (b :: v') w').map (c :: ·) by
+            simp [shuffle]]
+      rw [List.flatMap_append, flatMap_map_eq, flatMap_map_eq, List.map_append]
+    have ih_groups :
+        ((((shuffle u' (b :: v')).flatMap (shuffle · (c :: w'))).map (a :: ·) ++
+            ((shuffle (a :: u') v').flatMap (shuffle · (c :: w'))).map (b :: ·)) ++
+          (((shuffle (a :: u') (b :: v')).flatMap (shuffle · w')).map (c :: ·))).Perm
+          ((((shuffle (b :: v') (c :: w')).flatMap (shuffle u' ·)).map (a :: ·) ++
+              ((shuffle v' (c :: w')).flatMap (shuffle (a :: u') ·)).map (b :: ·)) ++
+            (((shuffle (b :: v') w').flatMap (shuffle (a :: u') ·)).map (c :: ·))) := by
+      exact List.Perm.append
+        (List.Perm.append (List.Perm.map _ ih1) (List.Perm.map _ ih2))
+        (List.Perm.map _ ih3)
+    have lhs_collapse :
+        ((((shuffle u' (b :: v')).flatMap (shuffle · (c :: w'))).map (a :: ·) ++
+            ((shuffle (a :: u') v').flatMap (shuffle · (c :: w'))).map (b :: ·)) ++
+          ((((shuffle u' (b :: v')).flatMap (fun s => shuffle (a :: s) w')).map (c :: ·)) ++
+            (((shuffle (a :: u') v').flatMap (fun s => shuffle (b :: s) w')).map (c :: ·)))).Perm
+          ((((shuffle u' (b :: v')).flatMap (shuffle · (c :: w'))).map (a :: ·) ++
+            ((shuffle (a :: u') v').flatMap (shuffle · (c :: w'))).map (b :: ·)) ++
+          (((shuffle (a :: u') (b :: v')).flatMap (shuffle · w')).map (c :: ·))) := by
+      have hc :
+          ((((shuffle u' (b :: v')).flatMap (fun s => shuffle (a :: s) w')).map (c :: ·)) ++
+              (((shuffle (a :: u') v').flatMap (fun s => shuffle (b :: s) w')).map (c :: ·))).Perm
+            (((shuffle (a :: u') (b :: v')).flatMap (shuffle · w')).map (c :: ·)) := by
+        exact List.Perm.of_eq (by simpa [List.map_append] using c_combine)
+      exact List.Perm.append_left _ hc
+    have rhs_expand :
+        (((((shuffle (b :: v') (c :: w')).flatMap (shuffle u' ·)).map (a :: ·)) ++
+            (((shuffle v' (c :: w')).flatMap (shuffle (a :: u') ·)).map (b :: ·))) ++
+          (((shuffle (b :: v') w').flatMap (shuffle (a :: u') ·)).map (c :: ·))).Perm
+          (((((shuffle v' (c :: w')).flatMap (fun s => shuffle u' (b :: s))).map (a :: ·)) ++
+              (((shuffle v' (c :: w')).flatMap (shuffle (a :: u') ·)).map (b :: ·))) ++
+            ((((shuffle (b :: v') w').flatMap (fun s => shuffle u' (c :: s))).map (a :: ·)) ++
+              (((shuffle (b :: v') w').flatMap (shuffle (a :: u') ·)).map (c :: ·)))) := by
+      have ha :
+          (((shuffle (b :: v') (c :: w')).flatMap (shuffle u' ·)).map (a :: ·)) =
+            ((((shuffle v' (c :: w')).flatMap (fun s => shuffle u' (b :: s))).map (a :: ·)) ++
+              (((shuffle (b :: v') w').flatMap (fun s => shuffle u' (c :: s))).map (a :: ·))) := by
+        simpa [List.map_append] using a_combine.symm
+      calc
+        ((((shuffle (b :: v') (c :: w')).flatMap (shuffle u' ·)).map (a :: ·)) ++
+            (((shuffle v' (c :: w')).flatMap (shuffle (a :: u') ·)).map (b :: ·))) ++
+          (((shuffle (b :: v') w').flatMap (shuffle (a :: u') ·)).map (c :: ·))
+            ~ (((shuffle (b :: v') (c :: w')).flatMap (shuffle u' ·)).map (a :: ·)) ++
+              ((((shuffle v' (c :: w')).flatMap (shuffle (a :: u') ·)).map (b :: ·)) ++
+                (((shuffle (b :: v') w').flatMap (shuffle (a :: u') ·)).map (c :: ·))) := by
+                exact List.Perm.of_eq (List.append_assoc _ _ _)
+        _ = ((((shuffle v' (c :: w')).flatMap (fun s => shuffle u' (b :: s))).map (a :: ·) ++
+              (((shuffle (b :: v') w').flatMap (fun s => shuffle u' (c :: s))).map (a :: ·))) ++
+            ((((shuffle v' (c :: w')).flatMap (shuffle (a :: u') ·)).map (b :: ·)) ++
+              (((shuffle (b :: v') w').flatMap (shuffle (a :: u') ·)).map (c :: ·)))) := by
+                rw [ha]
+        _ ~ (((((shuffle v' (c :: w')).flatMap (fun s => shuffle u' (b :: s))).map (a :: ·)) ++
+              (((shuffle v' (c :: w')).flatMap (shuffle (a :: u') ·)).map (b :: ·))) ++
+            ((((shuffle (b :: v') w').flatMap (fun s => shuffle u' (c :: s))).map (a :: ·)) ++
+              (((shuffle (b :: v') w').flatMap (shuffle (a :: u') ·)).map (c :: ·)))) := by
+                exact perm_append_swap_middle
+                  (((shuffle v' (c :: w')).flatMap (fun s => shuffle u' (b :: s))).map (a :: ·))
+                  (((shuffle (b :: v') w').flatMap (fun s => shuffle u' (c :: s))).map (a :: ·))
+                  (((shuffle v' (c :: w')).flatMap (shuffle (a :: u') ·)).map (b :: ·))
+                  (((shuffle (b :: v') w').flatMap (shuffle (a :: u') ·)).map (c :: ·))
+    calc
+      _ ~ ((((shuffle u' (b :: v')).flatMap (shuffle · (c :: w'))).map (a :: ·) ++
+            ((shuffle (a :: u') v').flatMap (shuffle · (c :: w'))).map (b :: ·)) ++
+          (((shuffle (a :: u') (b :: v')).flatMap (shuffle · w')).map (c :: ·))) := by
+            exact lhs_split.trans <| lhs_regroup.trans lhs_collapse
+      _ ~ ((((shuffle (b :: v') (c :: w')).flatMap (shuffle u' ·)).map (a :: ·) ++
+            ((shuffle v' (c :: w')).flatMap (shuffle (a :: u') ·)).map (b :: ·)) ++
+          (((shuffle (b :: v') w').flatMap (shuffle (a :: u') ·)).map (c :: ·))) := ih_groups
+      _ ~ (((((shuffle v' (c :: w')).flatMap (fun s => shuffle u' (b :: s))).map (a :: ·)) ++
+              (((shuffle v' (c :: w')).flatMap (shuffle (a :: u') ·)).map (b :: ·))) ++
+            ((((shuffle (b :: v') w').flatMap (fun s => shuffle u' (c :: s))).map (a :: ·)) ++
+              (((shuffle (b :: v') w').flatMap (shuffle (a :: u') ·)).map (c :: ·)))) := rhs_expand
+      _ ~ _ := rhs_split.symm
 
 /-- The empty word is a left unit -/
 theorem shuffle_one_left (w : Word A) :

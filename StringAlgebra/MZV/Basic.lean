@@ -195,11 +195,11 @@ def weight (w : MZVWord) : ℕ := w.length
 def depth (w : MZVWord) : ℕ :=
   w.countP (· == MZVLetter.one)
 
-/-- A word is admissible for MZVs if it starts with 1 and ends with 0.
+/-- A word is admissible for MZVs if it starts with 0 and ends with 1.
 
-    This corresponds to the convergence condition for the iterated integral. -/
+    This matches the `0^(sᵢ-1)1` word convention used throughout this repository. -/
 def isAdmissible (w : MZVWord) : Prop :=
-  w.head? = some MZVLetter.one ∧ w.getLast? = some MZVLetter.zero
+  w.head? = some MZVLetter.zero ∧ w.getLast? = some MZVLetter.one
 
 end MZVWord
 
@@ -207,11 +207,12 @@ end MZVWord
 
 /-- Convert a composition to an MZV word.
 
-    (s₁, s₂, ..., sₖ) ↦ 1 0^{s₁-1} 1 0^{s₂-1} ... 1 0^{sₖ-1}
+    (s₁, s₂, ..., sₖ) ↦ 0^{s₁-1} 1 0^{s₂-1} 1 ... 0^{sₖ-1} 1
 
     where 0^n means n copies of 0. -/
 def compositionToWord (s : Composition) : MZVWord :=
-  s.flatMap fun n => MZVLetter.one :: List.replicate (n.val - 1) MZVLetter.zero
+  s.flatMap fun n =>
+    List.replicate (n.val - 1) MZVLetter.zero ++ [MZVLetter.one]
 
 /-- The word representation has the same depth as the composition -/
 theorem compositionToWord_depth (s : Composition) :
@@ -222,10 +223,8 @@ theorem compositionToWord_depth (s : Composition) :
   | cons n ns ih =>
     simp only [List.flatMap_cons, List.countP_append, List.length_cons]
     rw [ih]
-    -- Count the 1s in (MZVLetter.one :: List.replicate (n.val - 1) MZVLetter.zero)
-    simp only [List.countP_cons, List.countP_replicate, beq_iff_eq]
-    -- The head is one, so we get 1 + (count of 1s in zeros) = 1 + 0 = 1
-    simp only [reduceCtorEq, ↓reduceIte]
+    simp only [List.countP_replicate, List.countP_singleton, beq_iff_eq]
+    simp only [reduceCtorEq, ↓reduceIte, Nat.zero_add]
     omega
 
 /-- The word representation preserves weight -/
@@ -235,12 +234,89 @@ theorem compositionToWord_weight (s : Composition) :
   induction s with
   | nil => simp
   | cons n ns ih =>
-    simp only [List.flatMap_cons, List.length_append, List.length_cons,
-               List.length_replicate, List.map_cons, List.sum_cons]
+    simp only [List.flatMap_cons, List.length_append, List.map_cons, List.sum_cons]
     rw [ih]
-    -- Length of (MZVLetter.one :: List.replicate (n.val - 1) MZVLetter.zero) = 1 + (n.val - 1) = n.val
-    have h : n.val ≥ 1 := n.pos
-    omega
+    have hlen : n.val - 1 + 1 = n.val := by
+      exact Nat.sub_add_cancel (Nat.succ_le_of_lt n.pos)
+    have hblock :
+        (List.replicate (n.val - 1) MZVLetter.zero ++ [MZVLetter.one]).length = n.val := by
+      simp [hlen]
+    simpa [hblock]
+
+/-- Decode a `{0,1}`-word back to a composition by reading blocks `0^(n-1)1`.
+
+    The decoder succeeds exactly when the word ends at a block boundary, i.e.
+    when it is empty or its final letter is `1`. -/
+def wordToComposition (w : MZVWord) : Option Composition :=
+  go w 0 []
+where
+  go : MZVWord → ℕ → List ℕ+ → Option Composition
+  | [], 0, acc => some acc.reverse
+  | [], _ + 1, _ => none
+  | MZVLetter.zero :: rest, currentZeros, acc =>
+      go rest (currentZeros + 1) acc
+  | MZVLetter.one :: rest, currentZeros, acc =>
+      go rest 0 (⟨currentZeros + 1, Nat.succ_pos _⟩ :: acc)
+
+private theorem wordToComposition_go_replicate_zero_append
+    (k currentZeros : ℕ) (w : MZVWord) (acc : List ℕ+) :
+    wordToComposition.go (List.replicate k MZVLetter.zero ++ w) currentZeros acc =
+      wordToComposition.go w (currentZeros + k) acc := by
+  induction k generalizing currentZeros with
+  | zero =>
+      simp
+  | succ k ih =>
+      simp [List.replicate_succ, wordToComposition.go, ih, Nat.add_left_comm,
+        Nat.add_comm]
+
+/-- Decoding the standard MZV word of a composition recovers that composition. -/
+theorem wordToComposition_compositionToWord (s : Composition) :
+    wordToComposition (compositionToWord s) = some s := by
+  suffices h :
+      ∀ acc : List ℕ+, wordToComposition.go (compositionToWord s) 0 acc = some (acc.reverse ++ s) by
+    simpa [wordToComposition] using h []
+  induction s with
+  | nil =>
+      intro acc
+      simp [compositionToWord, wordToComposition.go]
+  | cons n ns ih =>
+      intro acc
+      rw [show compositionToWord (n :: ns) =
+          List.replicate (n.val - 1) MZVLetter.zero ++ MZVLetter.one :: compositionToWord ns by
+            simp [compositionToWord, List.append_assoc]]
+      rw [wordToComposition_go_replicate_zero_append]
+      have hpart : (⟨n.val - 1 + 1, by omega⟩ : ℕ+) = n := by
+        apply Subtype.ext
+        simpa using Nat.sub_add_cancel (Nat.succ_le_of_lt n.pos)
+      simpa [wordToComposition.go, hpart, List.reverse_cons, List.append_assoc] using
+        ih (n :: acc)
+
+private theorem wordToComposition_go_weight
+    {w : MZVWord} {currentZeros : ℕ} {acc s : Composition}
+    (h : wordToComposition.go w currentZeros acc = some s) :
+    s.weight = acc.weight + w.length + currentZeros := by
+  induction w generalizing currentZeros acc s with
+  | nil =>
+      cases currentZeros with
+      | zero =>
+          simp [wordToComposition.go] at h
+          rw [← h, Composition.weight_reverse]
+          simp [Composition.weight]
+      | succ n =>
+          simp [wordToComposition.go] at h
+  | cons a rest ih =>
+      cases a with
+      | zero =>
+          simp [wordToComposition.go] at h
+          simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using ih h
+      | one =>
+          simp [wordToComposition.go] at h
+          simpa [Composition.weight, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using ih h
+
+/-- Successful decoding preserves weight: the composition weight equals the word length. -/
+theorem wordToComposition_weight {w : MZVWord} {s : Composition}
+    (h : wordToComposition w = some s) : s.weight = w.weight := by
+  simpa [wordToComposition, MZVWord.weight, Composition.weight] using wordToComposition_go_weight h
 
 /-! ## Standard Compositions -/
 
@@ -360,15 +436,52 @@ theorem hoffman_3_isHoffman : isHoffmanComposition hoffman_3 := by
   simp only [hoffman_3, List.mem_singleton] at hn
   right; simp [hn]
 
-/-- Brown's theorem (Hoffman's conjecture):
-    The motivic MZVs ζᵐ(n₁,...,nᵣ) with nᵢ ∈ {2,3} form a basis
-    for the space of motivic multiple zeta values.
+/-- Combinatorial existence of Hoffman compositions at each weight.
 
-    As a consequence, every MZV is a ℚ-linear combination of Hoffman MZVs.
+    For every weight w ≥ 2, there exists at least one composition using only
+    2s and 3s that sums to w. This is a purely combinatorial fact (we can
+    greedily decompose w into 2s and 3s).
 
-    Reference: Brown, "Mixed Tate motives over Z", Theorem 1.1 -/
-def brown_hoffman_basis : Prop :=
-  ∀ w : ℕ, w ≥ 2 → ∃ s : Composition, isHoffmanComposition s ∧ s.weight = w
+    NOTE: This is NOT Brown's theorem (which states that Hoffman compositions
+    form a *basis* for motivic MZVs — a deep result requiring motivic machinery).
+    Brown's actual theorem is that ζᵐ(n₁,...,nᵣ) with nᵢ ∈ {2,3} are linearly
+    independent and span all motivic MZVs. -/
+theorem hoffman_composition_exists :
+    ∀ w : ℕ, w ≥ 2 → ∃ s : Composition, isHoffmanComposition s ∧ s.weight = w := by
+  intro w hw
+  refine Nat.strong_induction_on w ?_ hw
+  intro n ih hn
+  have hcases : n = 2 ∨ n = 3 ∨ n ≥ 4 := by omega
+  cases hcases with
+  | inl h2 =>
+    subst h2
+    refine ⟨hoffman_2, hoffman_2_isHoffman, ?_⟩
+    simp [hoffman_2, Composition.weight]
+  | inr hrest =>
+    cases hrest with
+    | inl h3 =>
+      subst h3
+      refine ⟨hoffman_3, hoffman_3_isHoffman, ?_⟩
+      simp [hoffman_3, Composition.weight]
+    | inr hge4 =>
+      have hsub_lt : n - 2 < n := by omega
+      have hsub_ge2 : n - 2 ≥ 2 := by omega
+      rcases ih (n - 2) hsub_lt hsub_ge2 with ⟨s, hsH, hsW⟩
+      let two : ℕ+ := ⟨2, by omega⟩
+      refine ⟨two :: s, ?_, ?_⟩
+      · intro m hm
+        have hm' : m = two ∨ m ∈ s := by simpa using hm
+        cases hm' with
+        | inl hmEq =>
+          left
+          simpa [two] using congrArg PNat.val hmEq
+        | inr hmMem =>
+          exact hsH m hmMem
+      · change two.val + (List.map (fun x => x.val) s).sum = n
+        have hsW' : (List.map (fun x => x.val) s).sum = n - 2 := by
+          simpa [Composition.weight] using hsW
+        simp [two, hsW']
+        omega
 
 /-! ## Level Filtration
 

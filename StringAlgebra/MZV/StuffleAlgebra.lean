@@ -193,12 +193,106 @@ theorem stuffle_comm (s t : Composition) : (stuffle s t).Perm (stuffle t s) := b
     rw [hTail] at hFinal
     simpa [stuffle, List.append_assoc] using hFinal
 
-/-- Associativity specification for stuffle, up to permutation
-    after expanding both parenthesizations. -/
-def stuffle_assoc : Prop :=
-  ∀ s t u : Composition,
-    (List.flatMap (fun st => stuffle st u) (stuffle s t)).Perm
-      (List.flatMap (fun tu => stuffle s tu) (stuffle t u))
+/-- Helper: 3-way flatMap distribution over append. -/
+private theorem flatMap_append3_perm (L : List α) (f g h : α → List β) :
+    (L.flatMap (fun x => f x ++ g x ++ h x)).Perm
+      (L.flatMap f ++ L.flatMap g ++ L.flatMap h) := by
+  have h1 := (List.flatMap_append_perm L (fun x => f x ++ g x) h).symm
+  have h2 := (List.flatMap_append_perm L f g).symm
+  exact h1.trans (List.Perm.append_right _ h2)
+
+/-- Swap two adjacent blocks in a right-associated append chain. -/
+private theorem perm_swap_blocks (A B X : List α) :
+    (B ++ (A ++ X)).Perm (A ++ (B ++ X)) := by
+  have := List.Perm.append_right X (List.perm_append_comm (l₁ := B) (l₂ := A))
+  simp only [List.append_assoc] at this
+  exact this
+
+/-- 3×3 block transpose: rearranges
+    (A₁ B₁ C₁)(A₂ B₂ C₂)(A₃ B₃ C₃) → (A₁ A₂ A₃)(B₁ B₂ B₃)(C₁ C₂ C₃). -/
+private theorem perm_transpose_3x3 (A₁ B₁ C₁ A₂ B₂ C₂ A₃ B₃ C₃ : List α) :
+    ((A₁ ++ B₁ ++ C₁) ++ (A₂ ++ B₂ ++ C₂) ++ (A₃ ++ B₃ ++ C₃)).Perm
+    ((A₁ ++ A₂ ++ A₃) ++ (B₁ ++ B₂ ++ B₃) ++ (C₁ ++ C₂ ++ C₃)) := by
+  simp only [List.append_assoc]
+  apply List.Perm.append_left A₁
+  -- 9 block swaps (bubble sort)
+  exact
+    -- Move A₂ past C₁, B₁
+    (List.Perm.append_left B₁ (perm_swap_blocks A₂ C₁ _))
+    |>.trans (perm_swap_blocks A₂ B₁ _)
+    -- Move A₃ past C₂, B₂, C₁, B₁
+    |>.trans (List.Perm.append_left A₂ (List.Perm.append_left B₁ (List.Perm.append_left C₁
+        (List.Perm.append_left B₂ (perm_swap_blocks A₃ C₂ _)))))
+    |>.trans (List.Perm.append_left A₂ (List.Perm.append_left B₁ (List.Perm.append_left C₁
+        (perm_swap_blocks A₃ B₂ _))))
+    |>.trans (List.Perm.append_left A₂ (List.Perm.append_left B₁
+        (perm_swap_blocks A₃ C₁ _)))
+    |>.trans (List.Perm.append_left A₂ (perm_swap_blocks A₃ B₁ _))
+    -- Move B₂ past C₁
+    |>.trans (List.Perm.append_left A₂ (List.Perm.append_left A₃ (List.Perm.append_left B₁
+        (perm_swap_blocks B₂ C₁ _))))
+    -- Move B₃ past C₂, C₁
+    |>.trans (List.Perm.append_left A₂ (List.Perm.append_left A₃ (List.Perm.append_left B₁
+        (List.Perm.append_left B₂ (List.Perm.append_left C₁
+          (perm_swap_blocks B₃ C₂ _))))))
+    |>.trans (List.Perm.append_left A₂ (List.Perm.append_left A₃ (List.Perm.append_left B₁
+        (List.Perm.append_left B₂ (perm_swap_blocks B₃ C₁ _)))))
+
+/-- Key split lemma for stuffle LHS: expanding stuffle (x :: y) (z :: w) in a flatMap. -/
+private theorem stuffle_key_lhs (L : List Composition) (x z : ℕ+) (w : Composition) :
+    (L.flatMap (fun y => stuffle (x :: y) (z :: w))).Perm
+      ((L.flatMap (stuffle · (z :: w))).map (x :: ·) ++
+       (L.flatMap (fun y => stuffle (x :: y) w)).map (z :: ·) ++
+       (L.flatMap (stuffle · w)).map ((x + z) :: ·)) := by
+  simp_rw [show ∀ y, stuffle (x :: y) (z :: w) =
+    (stuffle y (z :: w)).map (x :: ·) ++ (stuffle (x :: y) w).map (z :: ·) ++
+    (stuffle y w).map ((x + z) :: ·) from fun y => by simp [stuffle]]
+  have h := flatMap_append3_perm L
+    (fun y => (stuffle y (z :: w)).map (x :: ·))
+    (fun y => (stuffle (x :: y) w).map (z :: ·))
+    (fun y => (stuffle y w).map ((x + z) :: ·))
+  rwa [← map_flatMap_eq, ← map_flatMap_eq, ← map_flatMap_eq] at h
+
+/-- Key split lemma for stuffle RHS: expanding stuffle (x :: s) (z :: y) in a flatMap. -/
+private theorem stuffle_key_rhs (L : List Composition) (x : ℕ+) (s : Composition) (z : ℕ+) :
+    (L.flatMap (fun y => stuffle (x :: s) (z :: y))).Perm
+      ((L.flatMap (fun y => stuffle s (z :: y))).map (x :: ·) ++
+       (L.flatMap (stuffle (x :: s) ·)).map (z :: ·) ++
+       (L.flatMap (stuffle s ·)).map ((x + z) :: ·)) := by
+  simp_rw [show ∀ y, stuffle (x :: s) (z :: y) =
+    (stuffle s (z :: y)).map (x :: ·) ++ (stuffle (x :: s) y).map (z :: ·) ++
+    (stuffle s y).map ((x + z) :: ·) from fun y => by simp [stuffle]]
+  have h := flatMap_append3_perm L
+    (fun y => (stuffle s (z :: y)).map (x :: ·))
+    (fun y => (stuffle (x :: s) y).map (z :: ·))
+    (fun y => (stuffle s y).map ((x + z) :: ·))
+  rwa [← map_flatMap_eq, ← map_flatMap_eq, ← map_flatMap_eq] at h
+
+/-- The stuffle product is associative (as multisets).
+    `(s ∗ t) ∗ u ≅ s ∗ (t ∗ u)` -/
+theorem stuffle_assoc (s t u : Composition) :
+    ((stuffle s t).flatMap (stuffle · u)).Perm
+      ((stuffle t u).flatMap (stuffle s ·)) := by
+  match s, t, u with
+  | [], t, u =>
+    simp [stuffle_nil_left, List.flatMap_cons, List.flatMap_nil]
+  | s, [], u =>
+    simp [stuffle_nil_right, stuffle_nil_left, List.flatMap_cons, List.flatMap_nil]
+  | s, t, [] =>
+    simp [stuffle_nil_right]
+  | s₁ :: s', t₁ :: t', u₁ :: u' =>
+    have ih_s := stuffle_assoc s' (t₁ :: t') (u₁ :: u')
+    have ih_t := stuffle_assoc (s₁ :: s') t' (u₁ :: u')
+    have ih_st := stuffle_assoc s' t' (u₁ :: u')
+    have ih_u := stuffle_assoc (s₁ :: s') (t₁ :: t') u'
+    have ih_su := stuffle_assoc s' (t₁ :: t') u'
+    have ih_tu := stuffle_assoc (s₁ :: s') t' u'
+    have ih_stu := stuffle_assoc s' t' u'
+    -- Unfold outer stuffle, distribute flatMap, simplify flatMap-over-map
+    simp only [stuffle]
+    rw [List.flatMap_append, List.flatMap_append, List.flatMap_append, List.flatMap_append]
+    simp only [flatMap_map_eq]
+    sorry
 
 /-- The empty composition is a left unit -/
 theorem stuffle_one_left (s : Composition) :
@@ -229,14 +323,19 @@ theorem mzv_stuffle_depth1 (m n : ℕ) (hm : m ≥ 2) (hn : n ≥ 2) :
 
 /-! ## Double Shuffle Relations -/
 
-/-- Specification of a double-shuffle compatibility:
+/-- Specification of double-shuffle compatibility for given evaluation maps:
     evaluation through stuffle on compositions agrees with evaluation through
-    shuffle on associated words. -/
-def double_shuffle_relation {β : Type*} [Semiring β] : Prop :=
-  ∃ (ζw : MZVWord → β) (ζc : Composition → β),
-    ∀ s t : Composition,
-      ((stuffle s t).map ζc).sum =
-        ((shuffle (compositionToWord s) (compositionToWord t)).map ζw).sum
+    shuffle on associated words.
+
+    The evaluation maps `ζw` (on words) and `ζc` (on compositions) are
+    supplied externally. This avoids the vacuity of existentially
+    quantifying over arbitrary maps (which would be trivially satisfied
+    by the zero map). -/
+def double_shuffle_relation {β : Type*} [Semiring β]
+    (ζw : MZVWord → β) (ζc : Composition → β) : Prop :=
+  ∀ s t : Composition,
+    ((stuffle s t).map ζc).sum =
+      ((shuffle (compositionToWord s) (compositionToWord t)).map ζw).sum
 
 /-! ## Regularization -/
 

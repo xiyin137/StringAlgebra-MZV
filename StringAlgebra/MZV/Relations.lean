@@ -82,16 +82,24 @@ theorem ones_weight (n : ℕ) : (ones n).weight = n := by
 
 /-! ## The Sum Formula -/
 
+/-- Canonical depth-varying terms in the weight-`n` sum formula:
+    `(k,1,...,1)` for `k = 2, ..., n-1`.
+
+    For n ≥ 3, `List.range (n - 2)` gives i ∈ [0, n-3],
+    so k = i + 2 ∈ [2, n-1] as required. -/
+def sumFormulaTerms (n : ℕ) : List Composition :=
+  (List.range (n - 2)).map fun i =>
+    let k := i + 2
+    (⟨k, by omega⟩ :: ones (n - k))
+
 /-- The sum formula states:
     Σ_{k=2}^{n-1} ζ(k, {1}^{n-k}) = ζ(n)
 
     This is a fundamental linear relation among MZVs.
     Example at n=3: ζ(2,1) = ζ(3) -/
-def sum_formula_general (n : ℕ) : Prop :=
-  n ≥ 3 →
-  ∃ terms : List Composition,
-    (∀ s ∈ terms, s.weight = n ∧ s.isAdmissible) ∧
-    terms.length = n - 1
+def sum_formula_general (ζ : Composition → ℚ) (n : ℕ) : Prop :=
+  ∀ hn : n ≥ 3,
+    List.sum ((sumFormulaTerms n).map ζ) = ζ [⟨n, by omega⟩]
 
 /-- Sum formula at weight 3: ζ(2,1) = ζ(3) -/
 def sum_formula_weight3 (ζ : Composition → ℚ) : Prop :=
@@ -158,20 +166,44 @@ def zeta21_eq_zeta3_via_duality (ζ : Composition → ℚ) : Prop :=
 
 /-! ## Ohno's Relations -/
 
-/-- Ohno's relation generalizes sum formula and duality.
+/-- All ways to distribute a total `n` among `k` non-negative parts.
 
-    For a composition s and a sequence of non-negative "heights" e,
-    sum over all ways to distribute total height Σeᵢ among the parts. -/
-structure OhnoRelation where
-  /-- Base composition -/
-  base : Composition
-  /-- Total height to distribute -/
-  totalHeight : ℕ
+    `distributions k n` returns all lists `e` of length `k` with `Σeᵢ = n`. -/
+def distributions : ℕ → ℕ → List (List ℕ)
+  | 0, 0 => [[]]
+  | 0, _ + 1 => []
+  | k + 1, n =>
+    (List.range (n + 1)).flatMap fun eᵢ =>
+      (distributions k (n - eᵢ)).map (eᵢ :: ·)
 
-/-- Ohno's relation: the sum over adding heights `e` to `s` equals
-    the sum over adding heights `f` to `s†` where `Σeᵢ = Σfⱼ`. -/
-def ohno_relation (s : Composition) (_hs : Composition.isAdmissible s) (_n : ℕ) : Prop :=
-  ∃ sDual : Composition, dualComp s = some sDual
+/-- Add a list of heights to a composition element-wise.
+
+    Given `s = (s₁, ..., sₖ)` and `e = (e₁, ..., eₖ)`,
+    returns `(s₁+e₁, ..., sₖ+eₖ)`. -/
+def addHeights (s : Composition) (e : List ℕ) : Composition :=
+  (s.zip e).map fun (p, eᵢ) => ⟨p.val + eᵢ, Nat.add_pos_left p.pos eᵢ⟩
+
+/-- The Ohno terms: all compositions obtained by distributing total
+    height `n` among the parts of `s`. -/
+def ohnoTerms (s : Composition) (n : ℕ) : List Composition :=
+  (distributions s.length n).map (addHeights s)
+
+/-- Ohno's relation generalizes the sum formula and duality.
+
+    For an admissible composition `s` and its dual `s†`, and any
+    non-negative integer `n`:
+
+    Σ_{Σeᵢ=n} ζ(s₁+e₁,...,sₖ+eₖ) = Σ_{Σfⱼ=n} ζ(s†₁+f₁,...,s†ₗ+fₗ)
+
+    The sums run over all ways to distribute total height `n` among
+    the parts of `s` (resp. `s†`). -/
+def ohno_relation_conjecture
+    (ζ : Composition → ℚ)
+    (s : Composition)
+    (_hs : Composition.isAdmissible s)
+    (n : ℕ) : Prop :=
+  ∀ sDual : Composition, dualComp s = some sDual →
+    List.sum ((ohnoTerms s n).map ζ) = List.sum ((ohnoTerms sDual n).map ζ)
 
 /-! ## Derivation Relations -/
 
@@ -192,10 +224,12 @@ def deriv3_zeta2 : Prop :=
   iharaDeriv 3 zeta2 = [(1, [⟨5, by omega⟩])]
 
 /-- Derivations satisfy [∂_m, ∂_n] = (m-n)∂_{m+n} (up to normalization) -/
-def derivation_commutator (m n : ℕ) : Prop :=
-  ∀ s : Composition,
-    (iharaDeriv m s).length = s.length ∧
-    (iharaDeriv n s).length = s.length
+def derivation_commutator_conjecture (m n : ℕ) : Prop :=
+  ∀ f : FormalSum,
+    FormalSum.sub
+      (iharaDerivation m (iharaDerivation n f))
+      (iharaDerivation n (iharaDerivation m f)) =
+    FormalSum.smul ((m : ℚ) - n) (iharaDerivation (m + n) f)
 
 /-! ## The Hoffman Basis -/
 
@@ -214,9 +248,18 @@ def hoffmanCount : ℕ → ℕ
   | 3 => 1  -- Just (3)
   | n + 4 => hoffmanCount (n + 2) + hoffmanCount (n + 1)
 
-/-- Brown's theorem: Hoffman elements span MZVs -/
-def hoffman_basis_theorem : Prop :=
-  ∀ w : ℕ, w ≥ 2 → ∃ s : Composition, s.weight = w ∧ isHoffman s
+/-- Hoffman compositions exist at every weight ≥ 2.
+
+    NOTE: This is a combinatorial fact (compositions using only 2s and 3s exist
+    at every weight ≥ 2), NOT Brown's theorem about spanning. Brown's actual
+    theorem — that Hoffman MZVs form a basis — requires motivic machinery. -/
+theorem hoffman_composition_exists_alt :
+    ∀ w : ℕ, w ≥ 2 → ∃ s : Composition, s.weight = w ∧ isHoffman s := by
+  intro w hw
+  rcases hoffman_composition_exists w hw with ⟨s, hs, hsw⟩
+  refine ⟨s, hsw, ?_⟩
+  intro p hp
+  exact hs p hp
 
 /-! ## The Broadhurst-Kreimer Conjecture -/
 
@@ -236,18 +279,47 @@ def bkDimension : ℕ → ℕ
 
     where B_{2n} are Bernoulli numbers. So all even zeta values
     are rational multiples of π^{2n}. -/
-def euler_even_zeta (n : ℕ) (_hn : n ≥ 1) : Prop :=
-  ∃ q : ℚ, q ≠ 0
+def euler_even_zeta_conjecture (ζ : Composition → ℚ) (n : ℕ) : Prop :=
+  ∀ hn : n ≥ 1,
+    ∃ q : ℚ,
+      ζ [⟨2 * n, by omega⟩] = q * (ζ [⟨2, by omega⟩]) ^ n
 
 /-- Corollary: ζ(2) = π²/6, ζ(4) = π⁴/90, ζ(6) = π⁶/945, ... -/
-def zeta_even_values : Prop :=
-  euler_even_zeta 1 (by omega) ∧
-  euler_even_zeta 2 (by omega) ∧
-  euler_even_zeta 3 (by omega)
+def zeta_even_values_conjecture (ζ : Composition → ℚ) : Prop :=
+  euler_even_zeta_conjecture ζ 1 ∧
+  euler_even_zeta_conjecture ζ 2 ∧
+  euler_even_zeta_conjecture ζ 3
 
-/-- The odd zeta values ζ(3), ζ(5), ... are conjectured to be
-    algebraically independent over ℚ(π). -/
-def odd_zeta_independence_conjecture : Prop :=
-  ∀ n m : ℕ, n ≥ 1 → m ≥ 1 → n ≠ m → (n : ℚ) ≠ m
+/-- Algebraic independence of odd zeta values over ℚ(π).
+
+    Conjecture: ζ(3), ζ(5), ζ(7), ... are algebraically independent over ℚ.
+    (Combined with Euler's theorem on even zeta values, this is equivalent to
+    algebraic independence over ℚ(π).)
+
+    Formalized as: no non-trivial polynomial relation with rational coefficients
+    holds among finitely many odd zeta values. An abstract evaluation map
+    `oddζ : ℕ → ℚ` represents ζ(2k+1) for k ≥ 1.
+
+    NOTE: Even the irrationality of ζ(5) is unknown. Apéry proved ζ(3) ∉ ℚ,
+    and Rivoal-Ball proved infinitely many ζ(2k+1) are irrational. -/
+def odd_zeta_independence_conjecture (oddζ : ℕ → ℚ) : Prop :=
+  -- For any non-constant polynomial P in variables {x_k : k ≥ 1} with
+  -- ℚ-coefficients, P(ζ(3), ζ(5), ζ(7), ...) ≠ 0.
+  --
+  -- We express this as: no finite ℚ-linear combination of distinct
+  -- monomial evaluations vanishes. A monomial is a finite multiset
+  -- of variable indices. The evaluation of monomial {i₁,...,iₖ} at oddζ
+  -- is oddζ(i₁) * ... * oddζ(iₖ).
+  --
+  -- For a proper formalization, use Mathlib's MvPolynomial.
+  -- The version below captures the essential content: no non-trivial
+  -- ℚ-polynomial relation holds among the values oddζ(k).
+  ∀ (terms : List (ℚ × List ℕ)),
+    -- non-trivial: at least one non-zero coefficient
+    (∃ c ms, (c, ms) ∈ terms ∧ c ≠ 0) →
+    -- distinct monomials (no duplicate exponent lists)
+    terms.Pairwise (fun a b => a.2 ≠ b.2) →
+    -- the polynomial evaluates to non-zero
+    (terms.map fun (c, ms) => c * (ms.map oddζ).prod).sum ≠ 0
 
 end StringAlgebra.MZV

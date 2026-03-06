@@ -71,7 +71,7 @@ and shows that motivic MZVs can be written as:
 
 This file now separates:
 1. proved infrastructure lemmas;
-2. explicit theorem obligations (via theorem statements, with `sorry` where open);
+2. explicit specification interfaces for still-open mathematical obligations;
 3. conjectural interfaces, named with `_conjecture`.
 -/
 
@@ -79,17 +79,28 @@ namespace StringAlgebra.MZV
 
 /-! ## The Motivic MZV Algebra -/
 
-/-- A motivic MZV is a lift of a numerical MZV to the motivic setting.
+/-- Toy model of a motivic MZV as a formal sum with weight/depth metadata.
 
-    Mathematically, these are framed mixed Tate motives.
-    The key property is that they satisfy the same shuffle/stuffle
-    relations as numerical MZVs, but with additional structure. -/
+    LIMITATIONS: This is a simplified combinatorial model, NOT a faithful
+    formalization of motivic MZVs (framed mixed Tate motives). Key gaps:
+
+    1. The `weight` and `depth` fields are free metadata not structurally
+       tied to `formal`. Use `WellFormed` to check consistency.
+    2. The algebra operations (add, mul) are defined on formal sums
+       but do NOT quotient by shuffle/stuffle relations.
+    3. The coaction is a depth-1 primitive model (Δ(m) = m⊗1 + 1⊗m),
+       not Brown's admissible-cut coaction.
+
+    A proper formalization would require:
+    - The quotient of the formal MZV algebra by double shuffle relations
+    - Brown's coaction via admissible cuts on composition words
+    - The period map to ℂ (or ℝ) via actual MZV evaluation -/
 structure MotivicMZV where
   /-- The underlying formal sum -/
   formal : FormalSum
-  /-- Weight of the motivic MZV -/
+  /-- Weight of the motivic MZV (metadata — check with WellFormed) -/
   weight : ℕ
-  /-- Depth of the motivic MZV -/
+  /-- Depth of the motivic MZV (metadata — check with WellFormed) -/
   depth : ℕ
   deriving DecidableEq, Repr
 
@@ -352,15 +363,21 @@ theorem equiv_of_eq {t₁ t₂ : TripleTensorElement} (h : t₁ = t₂) : Equiv 
 
 end TripleTensorElement
 
-/-- The motivic coaction Δ : H → H ⊗ H.
+/-- Toy model of the motivic coaction Δ : H → H ⊗ H.
 
-    For ζ^m(s), the coaction encodes how the MZV decomposes
-    under the action of the motivic Galois group.
+    LIMITATION: This implements only the depth-1 primitive coaction
+    Δ(m) = m ⊗ 1 + 1 ⊗ m, which is the coaction of a primitive
+    element in any Hopf algebra.
 
-    Δ(ζ^m(n)) = ζ^m(n) ⊗ 1 + 1 ⊗ ζ^m(n)  (for depth 1)
+    Brown's actual coaction involves admissible cuts on the word
+    representation and produces non-trivial "middle terms" at
+    higher depth. The depth-1 primitive model does NOT capture this
+    structure — it makes every element primitive.
 
-    For higher depth:
-    Δ(ζ^m(s₁,...,sₖ)) = ζ^m(s) ⊗ 1 + 1 ⊗ ζ^m(s) + Σ (cut terms) -/
+    The theorems proved below (coassociativity, multiplicativity)
+    are trivially true for the primitive coaction and do NOT
+    constitute proofs of the corresponding statements for the
+    full motivic coaction. -/
 structure Coaction where
   /-- The tensor element representing Δ(m) -/
   value : TensorElement
@@ -930,13 +947,13 @@ end FMonomial
     per : H → ℂ
 
     This is the "forget motivic structure" map.
-    It is a ring homomorphism but NOT injective
-    (in general, we lose information). -/
+    In this toy model it only records the total coefficient sum, so it is
+    additive but not multiplicative. -/
 def motivicPeriodMap (m : MotivicMZV) : ℚ :=
   (m.formal.map (fun t => t.1)).sum
 
-/-- The period map is a ring homomorphism -/
-theorem motivicPeriodMap_ring_hom :
+/-- The toy period map is additive with respect to formal-sum addition. -/
+theorem motivicPeriodMap_add :
     ∀ m₁ m₂ : MotivicMZV,
       motivicPeriodMap (MotivicMZV.add m₁ m₂) =
         motivicPeriodMap m₁ + motivicPeriodMap m₂ := by
@@ -962,18 +979,16 @@ theorem motivicPeriodMap_surjective : Function.Surjective motivicPeriodMap := by
 def motivicPeriodMap_kernel : Set MotivicMZV :=
   { m | motivicPeriodMap m = 0 }
 
-/-! ## Brown's Main Theorem -/
+/-! ## Brown-Inspired Weight Skeleton -/
 
-/-- Brown's structure theorem for motivic MZVs (current algebraic skeleton).
+/-- Weight-only combinatorial skeleton inspired by Brown's theorem.
 
-    The algebra of motivic MZVs is:
-    H = ℚ[f₃, f₅, f₇, ...]
-
-    as a polynomial algebra (not a free algebra - there are relations
-    coming from the Hopf algebra structure).
+    This result does not reconstruct the motivic element `m` and does not prove
+    polynomial-algebra structure. It only produces Hoffman-style `f`-monomials
+    whose total generator weight matches the metadata field `m.weight`.
 
     In this model we exclude formal weight `1`, which has no MZV generator. -/
-theorem brown_structure_theorem :
+theorem brown_structure_weight_skeleton :
     ∀ m : MotivicMZV, m.weight ≠ 1 →
       ∃ mons : List FMonomial, (mons.map FMonomial.weight).sum = m.weight := by
   intro m hwt
@@ -981,7 +996,7 @@ theorem brown_structure_theorem :
   · refine ⟨[], ?_⟩
     simp [hzero]
   · have hge2 : m.weight ≥ 2 := by omega
-    rcases brown_hoffman_basis m.weight hge2 with ⟨s, hsH, hsW⟩
+    rcases hoffman_composition_exists m.weight hge2 with ⟨s, hsH, hsW⟩
     let mon : FMonomial :=
       { coeff := 1
         generators := s.map (·.val)
@@ -1207,7 +1222,7 @@ end LevelBlock
     obtained from the Hoffman existence theorem. -/
 theorem exists_levelBlock_of_weight_ge2 (N : ℕ) (hN : N ≥ 2) :
     ∃ B : LevelBlock, B.weight = N ∧ B.rank = 1 := by
-  rcases brown_hoffman_basis N hN with ⟨s, hsH, hsW⟩
+  rcases hoffman_composition_exists N hN with ⟨s, hsH, hsW⟩
   refine ⟨
     { weight := N
       levelDeg := level s
@@ -5350,22 +5365,35 @@ end LowWeightTrustedPipelineIndex
 /-- Kontsevich-Zagier period conjecture (restricted to MZVs).
 
     Every algebraic relation between MZVs comes from a motivic relation.
-    Equivalently: the period map has "geometric" kernel. -/
-def period_conjecture : Prop :=
-  Function.Injective motivicPeriodMap
+    Equivalently: a proper period map per : H^mot → ℂ has kernel generated
+    by motivic relations only.
 
-/-- The algebra of periods over ℚ.
+    NOTE: This cannot be stated with the current toy `motivicPeriodMap`
+    (which just sums formal-sum coefficients), because that map is NOT
+    injective — distinct motivic MZVs can have the same coefficient sum.
+    The conjecture requires a genuine period map per : H^mot → ℂ sending
+    each motivic MZV to its numerical value, which is not formalized here.
 
-    MZVs generate a ℚ-subalgebra of ℂ. Understanding its structure
-    is a major open problem. -/
+    We state the conjecture as a specification parameterized by an
+    abstract period map. -/
+def period_conjecture {R : Type*} (per : MotivicMZV → R) : Prop :=
+  Function.Injective per
+
+/-- An abstract algebra of rational-valued period-like quantities.
+
+    In a genuine formalization the codomain would be a richer period field.
+    Here we keep only the closure properties needed for toy interfaces over `ℚ`. -/
 structure PeriodAlgebra where
   carrier : Set ℚ
   contains_zero : (0 : ℚ) ∈ carrier
   closed_add : ∀ a b : ℚ, a ∈ carrier → b ∈ carrier → a + b ∈ carrier
   closed_mul : ∀ a b : ℚ, a ∈ carrier → b ∈ carrier → a * b ∈ carrier
 
-/-- A canonical period algebra model containing all rational periods. -/
-def periodAlgebra : PeriodAlgebra where
+/-- Toy coefficient-value algebra induced by `motivicPeriodMap`.
+
+    Because the toy period map is surjective onto `ℚ`, this carrier is all of `ℚ`.
+    This should not be confused with the genuine period algebra of MZVs. -/
+def toyPeriodAlgebra : PeriodAlgebra where
   carrier := Set.range motivicPeriodMap
   contains_zero := by
     exact ⟨MotivicMZV.zero, by simp [motivicPeriodMap, MotivicMZV.zero]⟩
@@ -5374,32 +5402,53 @@ def periodAlgebra : PeriodAlgebra where
     rcases ha with ⟨ma, rfl⟩
     rcases hb with ⟨mb, rfl⟩
     refine ⟨MotivicMZV.add ma mb, ?_⟩
-    simpa using motivicPeriodMap_ring_hom ma mb
+    simpa using motivicPeriodMap_add ma mb
   closed_mul := by
     intro a b _ha _hb
     rcases motivicPeriodMap_surjective (a * b) with ⟨m, hm⟩
     exact ⟨m, hm⟩
 
+/-- The toy coefficient-value algebra contains every rational number. -/
+theorem toyPeriodAlgebra_carrier_univ : toyPeriodAlgebra.carrier = Set.univ := by
+  ext q
+  constructor
+  · intro _hq
+    simp
+  · intro _hq
+    rcases motivicPeriodMap_surjective q with ⟨m, hm⟩
+    exact ⟨m, hm⟩
+
 /-! ## Galois Theory -/
 
-/-- The motivic Galois group acts on motivic MZVs.
+/-- Toy model of a Galois-type action on motivic MZVs.
 
-    G_MT = Aut^⊗(ω)
+    The actual motivic Galois group is G_MT = Aut^⊗(ω) where ω is
+    the fiber functor on the category of mixed Tate motives over ℤ.
+    Its action on motivic MZVs is captured by the coaction and involves
+    non-trivial transformations.
 
-    where ω is the fiber functor. This action is captured by the coaction. -/
+    This structure only records weight/depth preservation; it does NOT
+    encode the full algebraic group structure or its relation to the coaction. -/
 structure MotivicGaloisGroup where
   act : MotivicMZV → MotivicMZV
   preserves_weight : ∀ m : MotivicMZV, (act m).weight = m.weight
   preserves_depth : ∀ m : MotivicMZV, (act m).depth = m.depth
 
-/-- The identity action gives a basic motivic Galois action model. -/
+/-- Scalar action on motivic MZVs: scale the formal sum by a unit.
+
+    NOTE: This is a toy model. The actual motivic Galois group G_MT
+    is a pro-algebraic group whose action on motivic MZVs is captured
+    by the coaction. It is NOT just scalar multiplication. -/
 def scaleAction (u : Units ℚ) : MotivicGaloisGroup where
   act := fun m => MotivicMZV.smul (u : ℚ) m
   preserves_weight := by intro _m; rfl
   preserves_depth := by intro _m; rfl
 
-/-- The unit scaling action as the default toy-model Galois element. -/
-def motivicGaloisGroup : MotivicGaloisGroup where
+/-- Trivial (identity) Galois action. This is a placeholder — the actual
+    motivic Galois group is the pro-algebraic group Aut^⊗(ω) where ω is
+    the fiber functor on mixed Tate motives over ℤ. Its Lie algebra is
+    a free Lie algebra on generators σ₃, σ₅, σ₇, ... -/
+def trivialGaloisAction : MotivicGaloisGroup where
   act := (scaleAction 1).act
   preserves_weight := (scaleAction 1).preserves_weight
   preserves_depth := (scaleAction 1).preserves_depth
@@ -5415,8 +5464,11 @@ def motivic_lie_algebra_conjecture : Prop :=
       FormalSum.sub (d m (d n f)) (d n (d m f)) =
         FormalSum.smul ((m : ℚ) - n) (d (m + n) f))
 
-/-- Ihara's derivation algebra is related to Lie(G_MT). -/
-theorem ihara_derivation_relation :
+/-- The weight-raising derivation produces as many output terms as the input depth.
+
+    NOTE: This is a trivial structural fact about `iharaDerivComp`, NOT a statement
+    about the relationship between Ihara's derivation algebra and Lie(G_MT). -/
+theorem iharaDerivComp_output_length :
     ∀ n : ℕ, ∀ s : Composition, (iharaDerivComp n s).length = s.length := by
   intro n s
   simpa using iharaDerivComp_length n s
@@ -5425,23 +5477,36 @@ theorem ihara_derivation_relation :
 
 /-! ## Connection to Physics -/
 
-/-- MZVs appear in Feynman integrals at multi-loop level.
+/-- Every motivic MZV maps into the toy coefficient-value algebra by definition.
 
-    This connection is not coincidental: both are periods of
-    mixed Tate motives arising from P¹ \ {0, 1, ∞}. -/
-theorem feynman_integral_connection :
-    ∀ m : MotivicMZV, motivicPeriodMap m ∈ periodAlgebra.carrier := by
+    NOTE: This is tautological — it just says that the image of
+    `motivicPeriodMap` lies in `Set.range motivicPeriodMap`.
+    The actual connection between MZVs and Feynman integrals requires
+    showing that specific Feynman integrals evaluate to MZVs (periods
+    of mixed Tate motives), which is a deep result not formalized here. -/
+theorem motivicPeriodMap_mem_toyPeriodAlgebra :
+    ∀ m : MotivicMZV, motivicPeriodMap m ∈ toyPeriodAlgebra.carrier := by
   intro m
   exact ⟨m, rfl⟩
 
 /-- The cosmic Galois group conjecture (Cartier-Kontsevich).
 
     There is a "cosmic Galois group" acting on Feynman integrals,
-    and the motivic Galois group is a quotient. -/
-def cosmic_galois_conjecture : Prop :=
+    and the motivic Galois group is a quotient.
+
+    NOTE: A proper formalization requires:
+    1. A genuine period map per : MotivicMZV → ℂ (not the toy coefficient sum)
+    2. An action of a pro-algebraic group on MotivicMZV
+    3. Per-equivariance: per(g · m) = per(m) for all g, m
+    4. Faithfulness of the action on the motivic side
+
+    The current toy infrastructure cannot express this meaningfully.
+    We state it as a specification parameterized by a period map. -/
+def cosmic_galois_conjecture {R : Type*} (per : MotivicMZV → R) : Prop :=
   ∃ G : MotivicGaloisGroup,
-    ∀ m : MotivicMZV,
-      motivicPeriodMap (G.act m) ∈ periodAlgebra.carrier ∧
-      (m ∈ motivicPeriodMap_kernel → G.act m ∈ motivicPeriodMap_kernel)
+    -- The action preserves the period map (equivariance)
+    (∀ m : MotivicMZV, per (G.act m) = per m) ∧
+    -- The action is non-trivial: there exists some m where G.act m ≠ m
+    (∃ m : MotivicMZV, G.act m ≠ m)
 
 end StringAlgebra.MZV

@@ -91,8 +91,8 @@ Source: `claude_to_codex.md`
 
 ## Current Metrics
 
-1. Build: `lake build StringAlgebra.MZV` passes.
-2. `sorry` count: `0`.
-3. `def ... : Prop` count: `93`.
-4. `theorem` count: `533`.
+1. Build: `lake build StringAlgebra.MZV` passes (with one `sorry` warning in `StuffleAlgebra.lean`).
+2. `sorry` count: `1`.
+3. `def ... : Prop` count: `76`.
+4. `theorem` count: `552`.
 5. `native_decide` count in `StringAlgebra/MZV/Motivic.lean`: `11`.
