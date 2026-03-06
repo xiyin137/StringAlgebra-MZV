@@ -238,6 +238,18 @@ private theorem perm_transpose_3x3 (A₁ B₁ C₁ A₂ B₂ C₂ A₃ B₃ C₃
     |>.trans (List.Perm.append_left A₂ (List.Perm.append_left A₃ (List.Perm.append_left B₁
         (List.Perm.append_left B₂ (perm_swap_blocks B₃ C₁ _)))))
 
+/-- De-interleave: (B₁C₁)(B₂C₂)(B₃C₃) → (B₁B₂B₃)(C₁C₂C₃). -/
+private theorem perm_deinterleave (B₁ C₁ B₂ C₂ B₃ C₃ : List α) :
+    (B₁ ++ C₁ ++ B₂ ++ C₂ ++ B₃ ++ C₃).Perm
+    (B₁ ++ B₂ ++ B₃ ++ C₁ ++ C₂ ++ C₃) := by
+  simp only [List.append_assoc]
+  apply List.Perm.append_left B₁
+  -- C₁(B₂(C₂(B₃ C₃))) → B₂(B₃(C₁(C₂ C₃)))
+  exact (perm_swap_blocks B₂ C₁ _).trans
+    (List.Perm.append_left B₂
+      ((List.Perm.append_left C₁ (perm_swap_blocks B₃ C₂ _)).trans
+       (perm_swap_blocks B₃ C₁ _)))
+
 /-- Key split lemma for stuffle LHS: expanding stuffle (x :: y) (z :: w) in a flatMap. -/
 private theorem stuffle_key_lhs (L : List Composition) (x z : ℕ+) (w : Composition) :
     (L.flatMap (fun y => stuffle (x :: y) (z :: w))).Perm
@@ -292,7 +304,103 @@ theorem stuffle_assoc (s t u : Composition) :
     simp only [stuffle]
     rw [List.flatMap_append, List.flatMap_append, List.flatMap_append, List.flatMap_append]
     simp only [flatMap_map_eq]
-    sorry
+    -- Goal: 3 LHS terms ~ 3 RHS terms
+    -- Step 1: Split each side into 9 sub-terms using key lemmas
+    have lhs_split := List.Perm.append (List.Perm.append
+        (stuffle_key_lhs (stuffle s' (t₁ :: t')) s₁ u₁ u')
+        (stuffle_key_lhs (stuffle (s₁ :: s') t') t₁ u₁ u'))
+        (stuffle_key_lhs (stuffle s' t') (s₁ + t₁) u₁ u')
+    have rhs_split := List.Perm.append (List.Perm.append
+        (stuffle_key_rhs (stuffle t' (u₁ :: u')) s₁ s' t₁)
+        (stuffle_key_rhs (stuffle (t₁ :: t') u') s₁ s' u₁))
+        (stuffle_key_rhs (stuffle t' u') s₁ s' (t₁ + u₁))
+    -- Step 2: 3×3 transpose on LHS
+    have lhs_trans := perm_transpose_3x3
+      ((stuffle s' (t₁ :: t')).flatMap (stuffle · (u₁ :: u')) |>.map (s₁ :: ·))
+      ((stuffle s' (t₁ :: t')).flatMap (fun y => stuffle (s₁ :: y) u') |>.map (u₁ :: ·))
+      ((stuffle s' (t₁ :: t')).flatMap (stuffle · u') |>.map ((s₁ + u₁) :: ·))
+      ((stuffle (s₁ :: s') t').flatMap (stuffle · (u₁ :: u')) |>.map (t₁ :: ·))
+      ((stuffle (s₁ :: s') t').flatMap (fun y => stuffle (t₁ :: y) u') |>.map (u₁ :: ·))
+      ((stuffle (s₁ :: s') t').flatMap (stuffle · u') |>.map ((t₁ + u₁) :: ·))
+      ((stuffle s' t').flatMap (stuffle · (u₁ :: u')) |>.map ((s₁ + t₁) :: ·))
+      ((stuffle s' t').flatMap (fun y => stuffle ((s₁ + t₁) :: y) u') |>.map (u₁ :: ·))
+      ((stuffle s' t').flatMap (stuffle · u') |>.map (((s₁ + t₁) + u₁) :: ·))
+    -- Step 3: 3×3 transpose on RHS
+    have rhs_trans := perm_transpose_3x3
+      ((stuffle t' (u₁ :: u')).flatMap (fun y => stuffle s' (t₁ :: y)) |>.map (s₁ :: ·))
+      ((stuffle t' (u₁ :: u')).flatMap (stuffle (s₁ :: s') ·) |>.map (t₁ :: ·))
+      ((stuffle t' (u₁ :: u')).flatMap (stuffle s' ·) |>.map ((s₁ + t₁) :: ·))
+      ((stuffle (t₁ :: t') u').flatMap (fun y => stuffle s' (u₁ :: y)) |>.map (s₁ :: ·))
+      ((stuffle (t₁ :: t') u').flatMap (stuffle (s₁ :: s') ·) |>.map (u₁ :: ·))
+      ((stuffle (t₁ :: t') u').flatMap (stuffle s' ·) |>.map ((s₁ + u₁) :: ·))
+      ((stuffle t' u').flatMap (fun y => stuffle s' ((t₁ + u₁) :: y)) |>.map (s₁ :: ·))
+      ((stuffle t' u').flatMap (stuffle (s₁ :: s') ·) |>.map ((t₁ + u₁) :: ·))
+      ((stuffle t' u').flatMap (stuffle s' ·) |>.map ((s₁ + (t₁ + u₁)) :: ·))
+    -- Step 4: u₁-combine on LHS (column b → single term)
+    -- The 3 u₁-prefixed terms combine back to the full stuffle product
+    have u₁_combine :
+        ((stuffle s' (t₁ :: t')).flatMap (fun y => stuffle (s₁ :: y) u')).map (u₁ :: ·) ++
+        ((stuffle (s₁ :: s') t').flatMap (fun y => stuffle (t₁ :: y) u')).map (u₁ :: ·) ++
+        ((stuffle s' t').flatMap (fun y => stuffle ((s₁ + t₁) :: y) u')).map (u₁ :: ·) =
+        ((stuffle (s₁ :: s') (t₁ :: t')).flatMap (stuffle · u')).map (u₁ :: ·) := by
+      rw [← List.map_append, ← List.map_append]
+      congr 1
+      rw [show stuffle (s₁ :: s') (t₁ :: t') =
+        (stuffle s' (t₁ :: t')).map (s₁ :: ·) ++
+        (stuffle (s₁ :: s') t').map (t₁ :: ·) ++
+        (stuffle s' t').map ((s₁ + t₁) :: ·) from by simp [stuffle]]
+      rw [List.flatMap_append, List.flatMap_append, flatMap_map_eq, flatMap_map_eq, flatMap_map_eq]
+    -- Step 5: s₁-combine on RHS (column a → single term)
+    have s₁_combine :
+        ((stuffle t' (u₁ :: u')).flatMap (fun y => stuffle s' (t₁ :: y))).map (s₁ :: ·) ++
+        ((stuffle (t₁ :: t') u').flatMap (fun y => stuffle s' (u₁ :: y))).map (s₁ :: ·) ++
+        ((stuffle t' u').flatMap (fun y => stuffle s' ((t₁ + u₁) :: y))).map (s₁ :: ·) =
+        ((stuffle (t₁ :: t') (u₁ :: u')).flatMap (stuffle s' ·)).map (s₁ :: ·) := by
+      rw [← List.map_append, ← List.map_append]
+      congr 1
+      rw [show stuffle (t₁ :: t') (u₁ :: u') =
+        (stuffle t' (u₁ :: u')).map (t₁ :: ·) ++
+        (stuffle (t₁ :: t') u').map (u₁ :: ·) ++
+        (stuffle t' u').map ((t₁ + u₁) :: ·) from by simp [stuffle]]
+      rw [List.flatMap_append, List.flatMap_append, flatMap_map_eq, flatMap_map_eq, flatMap_map_eq]
+    -- Step 6: Apply IH to each column group
+    -- Column a: A₁++A₂++A₃ ~ combined_A'++B'₁++C'₁
+    have ih_col_a := List.Perm.append (List.Perm.append
+        (List.Perm.map (s₁ :: ·) ih_s)
+        (List.Perm.map (t₁ :: ·) ih_t))
+        (List.Perm.map ((s₁ + t₁) :: ·) ih_st)
+    -- Column b: combined_B ~ B'₂
+    have ih_col_b := List.Perm.map (u₁ :: ·) ih_u
+    -- Column c: C₁++C₂++C₃ ~ C'₂++B'₃++C'₃
+    have h_add : (s₁ + t₁) + u₁ = s₁ + (t₁ + u₁) := add_assoc s₁ t₁ u₁
+    have ih_col_c := List.Perm.append (List.Perm.append
+        (List.Perm.map ((s₁ + u₁) :: ·) ih_su)
+        (List.Perm.map ((t₁ + u₁) :: ·) ih_tu))
+        (h_add ▸ List.Perm.map ((s₁ + (t₁ + u₁)) :: ·) ih_stu)
+    -- Step 7: Combine all IH results
+    have ih_all := List.Perm.append (List.Perm.append ih_col_a ih_col_b) ih_col_c
+    -- Step 8: Final proof chain
+    refine (lhs_split.trans lhs_trans).trans ?_
+    rw [u₁_combine]
+    refine ih_all.trans ?_
+    -- Fix s₁+t₁+u₁ vs s₁+(t₁+u₁) mismatch
+    rw [h_add]
+    -- Deinterleave + s₁_combine + rhs_split.symm
+    -- The goal: deinterleave B'/C' columns, undo s₁_combine, reverse rhs split
+    have rhs_chain := (rhs_split.trans rhs_trans).symm
+    apply List.Perm.trans
+    · -- Deinterleave: combined_A'++B'₁++C'₁++B'₂++C'₂++B'₃++C'₃
+      --            → combined_A'++B'₁++B'₂++B'₃++C'₁++C'₂++C'₃
+      simp only [List.append_assoc]
+      exact List.Perm.append_left _ (List.Perm.append_left _
+        ((perm_swap_blocks _ _ _).trans
+          (List.Perm.append_left _
+            ((List.Perm.append_left _ (perm_swap_blocks _ _ _)).trans
+             (perm_swap_blocks _ _ _)))))
+    · -- s₁ expand + RHS chain
+      rw [← s₁_combine]
+      simp only [List.append_assoc] at rhs_chain ⊢
+      exact rhs_chain
 
 /-- The empty composition is a left unit -/
 theorem stuffle_one_left (s : Composition) :
