@@ -1,12 +1,12 @@
 # MZV Formalization Status — Honest Assessment
 
-Date: 2026-03-06
+Date: 2026-03-05 (updated)
 
 ## Build Status
 
 1. `lake build StringAlgebra.MZV` passes.
 2. No `axiom`/`admit` usage.
-3. One theorem-level `sorry` remains: `stuffle_assoc` in `StringAlgebra/MZV/StuffleAlgebra.lean`.
+3. No theorem-level `sorry` remains.
 4. `native_decide` count in `Motivic.lean`: 11 (used for small matrix kernel checks).
 
 ## Honesty Notes
@@ -22,8 +22,8 @@ The proved content is limited to **basic combinatorics on lists**:
   commutativity (as multisets), binomial coefficient count of shuffles, and
   associativity as a theorem.
 - **StuffleAlgebra.lean**: Correct recursive stuffle product, weight preservation,
-  commutativity, and helper infrastructure toward associativity. The theorem
-  `stuffle_assoc` is stated, but its proof currently ends with one explicit `sorry`.
+  commutativity, and **associativity** (fully proved). Helper infrastructure includes
+  `perm_transpose_3x3`, `perm_deinterleave`, and stuffle key lemmas for the 9-term expansion.
 - **IteratedIntegral.lean**: Duality involution correctly defined and proved involutive.
   Weight/depth preservation for form words.
 - **DoubleShuffle.lean**: Formal sum algebra operations. Weight-raising derivation
@@ -151,8 +151,9 @@ Motivic -> Associator
 
 ### WP0 — Foundational Gaps (Highest Priority)
 
-1. **Prove shuffle/stuffle associativity** — currently only specifications.
-   These are standard results needing careful induction proofs.
+1. ~~**Prove shuffle/stuffle associativity**~~ — **DONE** (2026-03-05).
+   Both `shuffle_assoc` and `stuffle_assoc` fully proved by well-founded induction
+   with 3×3 block transpose and column-combining strategy.
 2. **Replace depth-1 primitive coaction** with Brown's admissible-cut coaction.
    This is the single most impactful change for mathematical content.
 3. **Enforce MotivicMZV invariants** — either make weight/depth computed fields
@@ -162,7 +163,7 @@ Motivic -> Associator
 
 Targets: `ShuffleAlgebra.lean`, `StuffleAlgebra.lean`, `DoubleShuffle.lean`
 
-1. Prove associativity for shuffle and stuffle.
+1. ~~Prove associativity for shuffle and stuffle.~~ — **DONE** (2026-03-05).
 2. Connect regularization maps by explicit compatibility lemmas.
 3. Prove concrete double shuffle relations (e.g., ζ(2,1) = ζ(3)).
 
